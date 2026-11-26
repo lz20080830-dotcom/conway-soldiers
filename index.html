@@ -146,6 +146,19 @@
     .brand-title { font-size: 13px; font-weight: 800; line-height: 1.1; }
     .brand-sub { margin-top: 2px; font-size: 10px; color: #94a3b8; line-height: 1.1; }
     .brand-sep { display: none; width: 1px; height: 20px; background: rgba(51, 65, 85, 0.9); flex: none; }
+    .ver-link {
+      flex: none;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 10px;
+      color: #7dd3fc;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
     .level-btn {
       flex: 1;
       min-width: 0;
@@ -613,7 +626,7 @@
       }
       .brand { padding: 4px; }
       .phi { width: 28px; height: 28px; }
-      .level-btn, .icon-btn, .mode-btn, .demo-btn, .panel-x { min-height: 40px; height: 40px; }
+      .level-btn, .icon-btn, .mode-btn, .demo-btn, .panel-x, .ver-link { min-height: 40px; height: 40px; }
       .telemetry { width: auto; flex: 1 1 180px; min-height: 40px; padding: 4px 8px; }
       .telemetry .bar { display: none; }
       .pot { min-width: 0; flex-basis: 110px; }
@@ -638,6 +651,7 @@
       }
       .brand { flex: none; }
       .level-btn { flex: none; min-height: 32px; }
+      .ver-link { min-height: 32px; height: auto; }
       .telemetry { width: auto; flex: none; }
       .pot { flex: none; min-width: 132px; }
       .icon-dock { width: auto; }
@@ -691,6 +705,7 @@
             <span id="currentLevelShort" class="level-label">第5格 (∞红线)</span>
             <svg class="chevron" id="levelChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
+          <a class="ver-link" href="v2.html">极简版</a>
         </div>
         <div id="panelLevels" class="popover-panel glass-strong" role="listbox" aria-label="选择验证关卡" aria-hidden="true">
           <div class="panel-head">
