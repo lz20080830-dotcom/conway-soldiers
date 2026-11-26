@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#060911" />
+  <meta name="description" content="康威的士兵极简无限挑战：在真正无限的下半平面上尽量逼近四格红线。" />
+  <title>康威的士兵 · 极简无限挑战</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23060911' width='32' height='32' rx='8'/%3E%3Ccircle cx='16' cy='18' r='7' fill='%23f59e0b'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #060911;
+      --sat: env(safe-area-inset-top, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --header-bottom: 72px;
+      --footer-top: calc(100dvh - 80px);
+      --sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: var(--vvh, 100dvh);
+      overflow: hidden;
+      background: var(--bg);
+      color: #f1f5f9;
+      font-family: var(--sans);
+      overscroll-behavior: none;
+    }
+    body { user-select: none; -webkit-user-select: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    a { touch-action: manipulation; }
+    button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+    button:disabled { opacity: 0.35; cursor: default; }
+    [hidden] { display: none !important; }
+    .visually-hidden {
+      position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    .skip {
+      position: fixed; left: calc(8px + var(--sal)); top: calc(8px + var(--sat)); z-index: 40;
+      transform: translateY(-150%); background: #f59e0b; color: #0f172a; font-weight: 700;
+      padding: 8px 12px; border-radius: 10px; text-decoration: none;
+    }
+    .skip:focus { transform: none; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    #safeProbe {
+      position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    #canvasWrap { position: fixed; inset: 0; z-index: 0; width: var(--vvw, 100%); height: var(--vvh, 100dvh); cursor: grab; }
+    #canvasWrap.is-panning { cursor: grabbing; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .glass {
+      background: rgba(12, 18, 32, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .topbar {
+      position: fixed; z-index: 20; top: 0; left: 0; right: 0;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+      padding: calc(8px + var(--sat)) calc(8px + var(--sar)) 6px calc(8px + var(--sal));
+      pointer-events: none;
+    }
+    .topbar > * { pointer-events: auto; max-width: 100%; min-width: 0; }
+    .status, .sigma {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+      min-height: 44px; padding: 6px 10px; border-radius: 16px; font-size: 13px;
+    }
+    .status { flex: 1 1 200px; }
+    .sigma { flex: 1 1 150px; justify-content: flex-start; }
+    .phi {
+      flex: none; width: 28px; height: 28px; border-radius: 8px;
+      display: grid; place-items: center; font-weight: 800; color: #0f172a; font-size: 13px;
+      background: linear-gradient(135deg, #fcd34d, #f43f5e);
+    }
+    .stat { color: #cbd5e1; white-space: nowrap; }
+    .em-green { color: #34d399; }
+    .em-amber { color: #fcd34d; }
+    .em-sky { color: #7dd3fc; }
+    .sig { color: #fbbf24; font-weight: 800; }
+    .sep { width: 1px; height: 14px; background: rgba(51, 65, 85, 0.95); flex: none; }
+    .best {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 8px;
+      background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fcd34d; font-size: 11px; white-space: nowrap;
+    }
+    .ver-link {
+      flex: none; min-height: 44px; display: inline-flex; align-items: center;
+      padding: 0 12px; border-radius: 14px; color: #7dd3fc; font-size: 13px; font-weight: 700;
+      text-decoration: none; white-space: nowrap;
+    }
+    .footer {
+      position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+      display: flex; justify-content: center;
+      padding: 0 calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal));
+      pointer-events: none;
+    }
+    .dock {
+      pointer-events: auto; width: min(100%, 760px);
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
+      padding: 6px; border-radius: 16px;
+    }
+    .dock button {
+      min-height: 44px; padding: 8px 10px; border-radius: 12px;
+      color: #e2e8f0; font-size: 13px; font-weight: 650;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      border: 1px solid transparent; white-space: nowrap;
+    }
+    .dock button svg { width: 16px; height: 16px; flex: none; }
+    .dock button:active { transform: scale(0.96); }
+    #btnEndgame { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.35); color: #fda4af; font-weight: 700; }
+    #btnWeights.is-on { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fcd34d; }
+    .icon-only { width: 44px; padding: 0; }
+    .toast-box {
+      position: fixed; z-index: 30;
+      left: calc(8px + var(--sal)); right: calc(8px + var(--sar));
+      top: calc(var(--header-bottom) + 6px);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      pointer-events: none;
+    }
+    .toast {
+      max-width: 100%; padding: 8px 12px; border-radius: 14px;
+      background: rgba(12, 18, 32, 0.92); border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fde68a; font-size: 12px; font-weight: 650; line-height: 1.45; text-align: center;
+    }
+    .noscript {
+      position: fixed; z-index: 40; left: calc(16px + var(--sal)); right: calc(16px + var(--sar));
+      top: 50%; transform: translateY(-50%); text-align: center; line-height: 1.5;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .dock button:hover, .ver-link:hover { background: rgba(30, 41, 59, 0.9); }
+      #btnEndgame:hover { background: rgba(244, 63, 94, 0.28); }
+    }
+    @media (max-height: 520px) {
+      .topbar { gap: 4px; padding-top: calc(4px + var(--sat)); padding-bottom: 4px; }
+      .status, .sigma, .ver-link, .dock button { min-height: 40px; }
+      .icon-only { width: 40px; }
+      .footer { padding-bottom: calc(4px + var(--sab)); }
+      .phi { width: 24px; height: 24px; }
+    }
+    @media (max-width: 380px) {
+      .dock { gap: 4px; padding: 4px; }
+      .dock button { padding: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#actionDock">跳到操作栏</a>
+  <h1 class="visually-hidden">康威的士兵 · 极简无限挑战</h1>
+  <div id="canvasWrap">
+    <canvas id="boardCanvas" tabindex="0" aria-label="康威士兵无限棋盘" aria-describedby="boardDesc"></canvas>
+  </div>
+  <p id="boardDesc" class="visually-hidden">无限下半平面。点棋子再点绿圈，或拖到绿圈跳跃。拖空白平移，双指或滚轮缩放。点第 5 行切换目标格。</p>
+  <header class="topbar" id="topbar">
+    <div class="glass status">
+      <span class="phi" aria-hidden="true">φ</span>
+      <span class="stat">最高 <strong id="elMaxY" class="mono em-green">y=0</strong></span>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="stat" title="已过起跑线 (y ≥ 1) 棋子占目标 T 势能总和；越接近 100% 越逼近红线极限">逼近 <strong id="elAbovePct" class="mono em-amber">0.0%</strong></span>
+      <span id="elBestWrap" class="best" hidden title="历史最高逼近纪录（自动保存在本地）"><span aria-hidden="true">🏆</span><span id="elBestText" class="mono">0.0%</span></span>
+    </div>
+    <a class="glass ver-link" href="index.html">完整版</a>
+    <div class="glass sigma">
+      <span class="sig">Σ</span>
+      <span id="elSigma" class="mono">1.000000</span>
+      <span class="sep" aria-hidden="true"></span>
+      <span id="elMoves" class="mono em-sky">0步</span>
+    </div>
+  </header>
+  <div id="toastBox" class="toast-box" aria-live="polite"></div>
+  <footer class="footer">
+    <div class="glass dock" id="actionDock">
+      <button type="button" id="btnUndo" disabled title="撤销上一步 (Z)" aria-label="撤销上一步" aria-keyshortcuts="Z">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        <span>撤销</span>
+      </button>
+      <button type="button" id="btnReset" title="重开本局 (R)" aria-label="重开本局" aria-keyshortcuts="R">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <span>重开</span>
+      </button>
+      <button type="button" id="btnEndgame" title="加载「差一子四连跳」极限残局">极限残局</button>
+      <button type="button" id="btnZoomOut" class="icon-only" title="缩小" aria-label="缩小">−</button>
+      <button type="button" id="btnCenter" title="把起跑线和红线放进可视区域">居中</button>
+      <button type="button" id="btnZoomIn" class="icon-only" title="放大" aria-label="放大">+</button>
+      <button type="button" id="btnWeights" class="is-on" aria-pressed="true" title="开关棋盘 φ 权重显示">φ 权重</button>
+      <button type="button" id="btnSound" class="icon-only" aria-pressed="true" title="开关音效" aria-label="开关音效">
+        <svg id="svgSoundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <svg id="svgSoundOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>
+      </button>
+    </div>
+  </footer>
+  <div id="safeProbe" aria-hidden="true"></div>
+  <noscript><p class="noscript">请启用 JavaScript 后再打开此页面。本页是单文件棋盘，不需要网络。</p></noscript>
+  <script>
+    (function () {
+      'use strict';
+
+      const PHI = (Math.sqrt(5) - 1) / 2;
+      const PHI_POW = [1];
+      for (let i = 1; i <= 160; i++) PHI_POW.push(PHI_POW[i - 1] * PHI);
+      const SANS = '"Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
+      const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+      const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+      const keyOf = function (x, y) { return x + ',' + y; };
+      function parseKey(k) {
+        const i = k.indexOf(',');
+        return [parseInt(k.slice(0, i), 10), parseInt(k.slice(i + 1), 10)];
+      }
+      function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+      function toSup(n) {
+        return String(n).split('').map(function (ch) { return SUP[ch] || ch; }).join('');
+      }
+
+      const state = {
+        removedBelow: new Set(),
+        addedAbove: new Set(),
+        history: [],
+        selected: null,
+        targetX: 0,
+        showWeights: true,
+        soundEnabled: true,
+        maxY: 0,
+        bestY: 0,
+        bestAbove: 0,
+        isEndgamePreset: false,
+        camX: 0,
+        camY: 1,
+        cellSize: 40,
+        viewCustom: false,
+        isPanning: false,
+        panStartScreen: null,
+        panStartCam: null,
+        hasDragged: false,
+        dragPeg: null,
+        hoverCell: null,
+        pinch: null,
+        anim: null,
+        ripples: [],
+        floatTexts: []
+      };
+
+      try {
+        const by = parseInt(localStorage.getItem('conway_min_best_y') || '0', 10);
+        const ba = parseFloat(localStorage.getItem('conway_min_best_above') || '0');
+        if (!isNaN(by) && by > 0) state.bestY = by;
+        if (!isNaN(ba) && ba > 0) state.bestAbove = ba;
+      } catch (err) { /* private mode */ }
+
+      const canvasWrap = document.getElementById('canvasWrap');
+      const canvas = document.getElementById('boardCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const staticCanvas = document.createElement('canvas');
+      const sctx = staticCanvas.getContext('2d', { alpha: false });
+      const safeProbe = document.getElementById('safeProbe');
+      const topbar = document.getElementById('topbar');
+      const actionDock = document.getElementById('actionDock');
+      const elMaxY = document.getElementById('elMaxY');
+      const elAbovePct = document.getElementById('elAbovePct');
+      const elBestWrap = document.getElementById('elBestWrap');
+      const elBestText = document.getElementById('elBestText');
+      const elSigma = document.getElementById('elSigma');
+      const elMoves = document.getElementById('elMoves');
+      const btnUndo = document.getElementById('btnUndo');
+      const btnReset = document.getElementById('btnReset');
+      const btnEndgame = document.getElementById('btnEndgame');
+      const btnCenter = document.getElementById('btnCenter');
+      const btnWeights = document.getElementById('btnWeights');
+      const btnSound = document.getElementById('btnSound');
+      const btnZoomIn = document.getElementById('btnZoomIn');
+      const btnZoomOut = document.getElementById('btnZoomOut');
+      const svgSoundOn = document.getElementById('svgSoundOn');
+      const svgSoundOff = document.getElementById('svgSoundOff');
+      const toastBox = document.getElementById('toastBox');
+
+      const motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let reduceMotion = motionMq.matches;
+      let dpr = 1;
+      let staticDirty = true;
+      let rafId = 0;
+      let needsFrame = true;
+      let lastDraw = 0;
+      let lastBox = { w: window.innerWidth, h: window.innerHeight };
+      let insets = { top: 0, right: 0, bottom: 0, left: 0, headerBottom: 0, footerTop: 0 };
+      const pointers = new Map();
+      let audioCtx = null;
+
+      function makePegSprite(stops) {
+        const size = 160;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const g = c.getContext('2d');
+        const cx = size / 2, cy = size / 2, r = size * 0.36;
+        g.shadowColor = 'rgba(0,0,0,0.5)';
+        g.shadowBlur = 10;
+        g.shadowOffsetY = 4;
+        const grad = g.createRadialGradient(cx - r * 0.32, cy - r * 0.32, r * 0.08, cx, cy, r);
+        stops.forEach(function (s) { grad.addColorStop(s[0], s[1]); });
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(cx, cy, r, 0, Math.PI * 2);
+        g.fill();
+        g.shadowColor = 'transparent';
+        g.shadowBlur = 0;
+        g.lineWidth = 2.5;
+        g.strokeStyle = 'rgba(255,255,255,0.28)';
+        g.stroke();
+        g.fillStyle = 'rgba(255,255,255,0.38)';
+        g.beginPath();
+        g.arc(cx - r * 0.28, cy - r * 0.28, r * 0.15, 0, Math.PI * 2);
+        g.fill();
+        return { canvas: c, radius: r, size: size };
+      }
+      const pegBelow = makePegSprite([[0, '#fef08a'], [0.48, '#f59e0b'], [1, '#92400e']]);
+      const pegAbove = makePegSprite([[0, '#a7f3d0'], [0.45, '#10b981'], [1, '#065f46']]);
+
+      function ensureAudio() {
+        if (!state.soundEnabled) return null;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') audioCtx.resume().catch(function () {});
+        return audioCtx;
+      }
+      function playTone(freq, dur, type, gainVal, endFreq) {
+        const ac = ensureAudio();
+        if (!ac) return;
+        try {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.type = type || 'triangle';
+          osc.frequency.setValueAtTime(freq, ac.currentTime);
+          if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), ac.currentTime + dur);
+          gain.gain.setValueAtTime(gainVal, ac.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.start();
+          osc.stop(ac.currentTime + dur);
+        } catch (err) { /* autoplay */ }
+      }
+
+      function hasPeg(x, y) {
+        const k = keyOf(x, y);
+        return y <= 0 ? !state.removedBelow.has(k) : state.addedAbove.has(k);
+      }
+      function setPeg(x, y, present) {
+        const k = keyOf(x, y);
+        if (y <= 0) {
+          if (present) state.removedBelow.delete(k);
+          else state.removedBelow.add(k);
+        } else if (present) state.addedAbove.add(k);
+        else state.addedAbove.delete(k);
+        staticDirty = true;
+      }
+      function distToT(x, y) { return Math.abs(x - state.targetX) + Math.abs(y - 5); }
+      function weight(x, y) {
+        const d = distToT(x, y);
+        return d < PHI_POW.length ? PHI_POW[d] : Math.pow(PHI, d);
+      }
+      function calcAbovePotential() {
+        let sum = 0;
+        state.addedAbove.forEach(function (k) {
+          const p = parseKey(k);
+          sum += weight(p[0], p[1]);
+        });
+        return sum;
+      }
+      function calcSigma() {
+        let sum = 1;
+        state.removedBelow.forEach(function (k) {
+          const p = parseKey(k);
+          sum -= weight(p[0], p[1]);
+        });
+        sum += calcAbovePotential();
+        return Math.max(0, sum);
+      }
+      function validJumps(x, y) {
+        if (!hasPeg(x, y)) return [];
+        const res = [];
+        const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+        for (let i = 0; i < dirs.length; i++) {
+          const vx = dirs[i][0], vy = dirs[i][1];
+          const mx = x + vx, my = y + vy, dx = x + 2 * vx, dy = y + 2 * vy;
+          if (hasPeg(mx, my) && !hasPeg(dx, dy)) res.push({ mx: mx, my: my, dx: dx, dy: dy });
+        }
+        return res;
+      }
+
+      function showToast(text) {
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = text;
+        toastBox.appendChild(el);
+        while (toastBox.children.length > 2) toastBox.removeChild(toastBox.firstChild);
+        setTimeout(function () {
+          el.style.opacity = '0';
+          setTimeout(function () { el.remove(); }, 220);
+        }, 2200);
+      }
+      function clearToasts() { toastBox.replaceChildren(); }
+
+      function updateHUD() {
+        let curMaxY = 0;
+        state.addedAbove.forEach(function (k) {
+          const y = parseKey(k)[1];
+          if (y > curMaxY) curMaxY = y;
+        });
+        state.maxY = Math.max(state.maxY, curMaxY);
+        const above = calcAbovePotential();
+        let brokeRecord = false;
+        if (!state.isEndgamePreset) {
+          if (state.maxY > state.bestY) {
+            state.bestY = state.maxY;
+            brokeRecord = true;
+            try { localStorage.setItem('conway_min_best_y', String(state.bestY)); } catch (err) {}
+          }
+          if (above > state.bestAbove + 1e-6) {
+            state.bestAbove = above;
+            brokeRecord = true;
+            try { localStorage.setItem('conway_min_best_above', state.bestAbove.toFixed(6)); } catch (err) {}
+          }
+        }
+        elMaxY.textContent = 'y=' + state.maxY;
+        elAbovePct.textContent = (above * 100).toFixed(1) + '%';
+        const showBest = state.bestAbove > 0 || state.bestY > 0;
+        elBestWrap.hidden = !showBest;
+        if (showBest) elBestText.textContent = 'y=' + state.bestY + ' · ' + (state.bestAbove * 100).toFixed(1) + '%';
+        elSigma.textContent = calcSigma().toFixed(6);
+        elMoves.textContent = state.history.length + '步';
+        btnUndo.disabled = state.history.length === 0;
+        if (brokeRecord && state.history.length > 0 && above >= 0.618) {
+          showToast('新纪录！红线逼近度 ' + (above * 100).toFixed(2) + '%');
+        }
+        needsFrame = true;
+        requestRender();
+      }
+
+      function jump(sx, sy, dx, dy) {
+        const mx = (sx + dx) / 2, my = (sy + dy) / 2;
+        if (!Number.isInteger(mx) || !Number.isInteger(my)) return false;
+        if (Math.abs(dx - sx) + Math.abs(dy - sy) !== 2 || (sx !== dx && sy !== dy)) return false;
+        if (!hasPeg(sx, sy) || !hasPeg(mx, my) || hasPeg(dx, dy)) return false;
+        const delta = weight(dx, dy) - weight(sx, sy) - weight(mx, my);
+        const isZero = Math.abs(delta) < 1e-9;
+        setPeg(sx, sy, false);
+        setPeg(mx, my, false);
+        setPeg(dx, dy, true);
+        state.history.push({ sx: sx, sy: sy, mx: mx, my: my, dx: dx, dy: dy });
+        state.selected = null;
+        const now = performance.now();
+        state.anim = { sx: sx, sy: sy, dx: dx, dy: dy, startTime: now, duration: reduceMotion ? 0 : 175 };
+        state.ripples.push({ x: mx, y: my, startTime: now, color: isZero ? '#10b981' : '#f43f5e' });
+        state.floatTexts.push({
+          wx: dx, wy: dy + 0.45,
+          text: isZero ? 'ΔΣ = 0' : 'ΔΣ = ' + delta.toFixed(4),
+          color: isZero ? '#34d399' : '#fb7185',
+          startTime: now
+        });
+        if (isZero) playTone(350, 0.1, 'triangle', 0.09, 530);
+        else playTone(260, 0.11, 'sine', 0.075, 195);
+        updateHUD();
+        return true;
+      }
+      function undo() {
+        if (!state.history.length) return;
+        const m = state.history.pop();
+        setPeg(m.dx, m.dy, false);
+        setPeg(m.sx, m.sy, true);
+        setPeg(m.mx, m.my, true);
+        state.selected = null;
+        state.anim = null;
+        state.dragPeg = null;
+        let curMaxY = 0;
+        state.addedAbove.forEach(function (k) {
+          const y = parseKey(k)[1];
+          if (y > curMaxY) curMaxY = y;
+        });
+        state.maxY = curMaxY;
+        playTone(460, 0.04, 'sine', 0.045, 360);
+        updateHUD();
+      }
+      function resetTransient() {
+        state.selected = null;
+        state.dragPeg = null;
+        state.anim = null;
+        state.ripples.length = 0;
+        state.floatTexts.length = 0;
+        state.isPanning = false;
+        state.pinch = null;
+        canvasWrap.classList.remove('is-panning');
+      }
+      function resetGame() {
+        clearToasts();
+        state.isEndgamePreset = false;
+        state.removedBelow.clear();
+        state.addedAbove.clear();
+        state.history = [];
+        state.targetX = 0;
+        state.maxY = 0;
+        resetTransient();
+        staticDirty = true;
+        playTone(480, 0.05, 'sine', 0.05, 380);
+        updateHUD();
+        layout();
+        fitSpan(-5, 5, -3, 6, 56);
+        state.viewCustom = false;
+      }
+      function loadExtremeEndgame() {
+        clearToasts();
+        state.isEndgamePreset = true;
+        state.removedBelow.clear();
+        state.addedAbove.clear();
+        state.history = [];
+        state.selected = null;
+        state.targetX = 0;
+        resetTransient();
+        state.addedAbove.add(keyOf(0, 4));
+        state.addedAbove.add(keyOf(0, 2));
+        state.addedAbove.add(keyOf(1, 1));
+        const jitterPool = [-1, 0, 0, 1, 1, 2];
+        for (let y = 0; y >= -16; y--) {
+          for (let x = -16; x <= 16; x++) {
+            if (x === 2 && y === 0) continue;
+            const d = Math.abs(x) + (5 - y);
+            const jitter = jitterPool[Math.floor(Math.random() * jitterPool.length)];
+            if (d <= 18 + jitter) state.removedBelow.add(keyOf(x, y));
+          }
+        }
+        const clearZone = [[2, -1], [1, -1], [3, -1], [2, -2], [2, -3], [3, 0], [4, 0], [1, 0], [0, 0], [-1, 0]];
+        clearZone.forEach(function (p) { state.removedBelow.add(keyOf(p[0], p[1])); });
+        const forbidden = new Set(clearZone.map(function (p) { return keyOf(p[0], p[1]); }));
+        const cands = [];
+        state.removedBelow.forEach(function (k) {
+          const p = parseKey(k);
+          const d = Math.abs(p[0]) + (5 - p[1]);
+          if (p[1] <= -1 && d >= 11 && !forbidden.has(k)) cands.push([p[0], p[1]]);
+        });
+        for (let i = cands.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = cands[i];
+          cands[i] = cands[j];
+          cands[j] = tmp;
+        }
+        let islandCount = 0;
+        let curSig = calcSigma();
+        for (let n = 0; n < cands.length; n++) {
+          if (islandCount >= 16) break;
+          const px = cands[n][0], py = cands[n][1];
+          const isolated = [[1, 0], [-1, 0], [0, 1], [0, -1]].every(function (v) {
+            const ny = py + v[1];
+            return ny > 0 || state.removedBelow.has(keyOf(px + v[0], ny));
+          });
+          if (!isolated) continue;
+          const wt = weight(px, py);
+          if (curSig + wt < 0.9978) {
+            state.removedBelow.delete(keyOf(px, py));
+            curSig += wt;
+            islandCount++;
+          }
+        }
+        state.maxY = 4;
+        staticDirty = true;
+        playTone(420, 0.08, 'triangle', 0.08, 620);
+        updateHUD();
+        layout();
+        fitSpan(-8, 8, -10, 5, 36);
+        state.viewCustom = false;
+        showToast('极限残局（含 ' + islandCount + ' 座孤岛）：差 (2,-1) 一子四连跳，总势能 Σ = ' + curSig.toFixed(6) + ' < 1');
+      }
+
+      function syncViewportVars() {
+        const vv = window.visualViewport;
+        const h = Math.round(vv ? vv.height : window.innerHeight);
+        const w = Math.round(vv ? vv.width : window.innerWidth);
+        const root = document.documentElement;
+        if (root.style.getPropertyValue('--vvh') === h + 'px' && root.style.getPropertyValue('--vvw') === w + 'px') return false;
+        root.style.setProperty('--vvh', h + 'px');
+        root.style.setProperty('--vvw', w + 'px');
+        return true;
+      }
+      function resizeCanvas() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvasWrap.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
+        const bw = Math.floor(w * dpr);
+        const bh = Math.floor(h * dpr);
+        if (canvas.width !== bw || canvas.height !== bh) {
+          canvas.width = bw;
+          canvas.height = bh;
+          staticCanvas.width = bw;
+          staticCanvas.height = bh;
+          staticDirty = true;
+          return true;
+        }
+        return false;
+      }
+      function layout() {
+        const vpChanged = syncViewportVars();
+        if (vpChanged) void document.documentElement.offsetHeight;
+        const padStyle = getComputedStyle(safeProbe);
+        const pad = {
+          top: parseFloat(padStyle.paddingTop) || 0,
+          right: parseFloat(padStyle.paddingRight) || 0,
+          bottom: parseFloat(padStyle.paddingBottom) || 0,
+          left: parseFloat(padStyle.paddingLeft) || 0
+        };
+        const sizeChanged = resizeCanvas();
+        const headerBottom = topbar.getBoundingClientRect().bottom;
+        const footerTop = actionDock.getBoundingClientRect().top;
+        const moved = Math.abs(headerBottom - insets.headerBottom) > 1 || Math.abs(footerTop - insets.footerTop) > 1 || vpChanged;
+        insets = { top: pad.top, right: pad.right, bottom: pad.bottom, left: pad.left, headerBottom: headerBottom, footerTop: footerTop };
+        const root = document.documentElement;
+        root.style.setProperty('--header-bottom', headerBottom + 'px');
+        root.style.setProperty('--footer-top', footerTop + 'px');
+        root.style.setProperty('--sal', pad.left + 'px');
+        root.style.setProperty('--sar', pad.right + 'px');
+        root.style.setProperty('--sat', pad.top + 'px');
+        root.style.setProperty('--sab', pad.bottom + 'px');
+        if (moved || sizeChanged) staticDirty = true;
+        return moved || sizeChanged;
+      }
+      function fitSpan(x0, x1, y0, y1, cap) {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        if (w < 10 || h < 10) return;
+        const cols = x1 - x0 + 1, rows = y1 - y0 + 1;
+        const freeLeft = insets.left + 48;
+        const freeRight = w - insets.right - 8;
+        const freeTop = insets.headerBottom + 6;
+        const freeBottom = Math.min(h - 6, insets.footerTop - 6);
+        const freeW = Math.max(48, freeRight - freeLeft);
+        const freeH = Math.max(48, freeBottom - freeTop);
+        const cs = clamp(Math.floor(Math.min(freeW / cols, freeH / rows)), 16, cap);
+        state.cellSize = cs;
+        const focusX = (x0 + x1) / 2;
+        const focusY = (y0 + y1) / 2;
+        const visCx = (freeLeft + freeRight) / 2;
+        const visCy = (freeTop + freeBottom) / 2;
+        state.camX = focusX - (visCx - w / 2) / cs;
+        state.camY = focusY - (h / 2 - visCy) / cs;
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      }
+      function fitCurrent() {
+        if (state.isEndgamePreset) fitSpan(-8, 8, -10, 5, 36);
+        else fitSpan(-5, 5, -3, 6, 56);
+        state.viewCustom = false;
+      }
+      function zoomAt(sx, sy, factor) {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        const wx = state.camX + (sx - w / 2) / state.cellSize;
+        const wy = state.camY - (sy - h / 2) / state.cellSize;
+        const size = clamp(state.cellSize * factor, 16, 84);
+        state.cellSize = size;
+        state.camX = wx - (sx - w / 2) / size;
+        state.camY = wy + (sy - h / 2) / size;
+        state.viewCustom = true;
+        staticDirty = true;
+        requestRender();
+      }
+      function zoomCenter(factor) {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        zoomAt((insets.left + w - insets.right) / 2, (insets.headerBottom + Math.min(h, insets.footerTop)) / 2, factor);
+      }
+
+      function worldToScreen(wx, wy) {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        return [w / 2 + (wx - state.camX) * state.cellSize, h / 2 - (wy - state.camY) * state.cellSize];
+      }
+      function screenToWorld(sx, sy) {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        return [
+          Math.round(state.camX + (sx - w / 2) / state.cellSize),
+          Math.round(state.camY - (sy - h / 2) / state.cellSize)
+        ];
+      }
+      function roundRect(c, x, y, w, h, r) {
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+      function visibleRange() {
+        const w = canvas.clientWidth, h = canvas.clientHeight, cs = state.cellSize;
+        return {
+          w: w, h: h, cs: cs,
+          minX: Math.floor(state.camX - w / (2 * cs)) - 1,
+          maxX: Math.ceil(state.camX + w / (2 * cs)) + 1,
+          minY: Math.floor(state.camY - h / (2 * cs)) - 1,
+          maxY: Math.ceil(state.camY + h / (2 * cs)) + 1
+        };
+      }
+
+      function drawStatic() {
+        const range = visibleRange();
+        const w = range.w, h = range.h, cs = range.cs;
+        sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        sctx.clearRect(0, 0, w, h);
+        const bg = sctx.createRadialGradient(w / 2, h * 0.4, 30, w / 2, h * 0.5, Math.max(w, h) * 0.78);
+        bg.addColorStop(0, '#0d1424');
+        bg.addColorStop(1, '#05080f');
+        sctx.fillStyle = bg;
+        sctx.fillRect(0, 0, w, h);
+        const redLineY = worldToScreen(0, 4.5)[1];
+        const startLineY = worldToScreen(0, 0.5)[1];
+        if (redLineY > 0) {
+          const gTop = sctx.createLinearGradient(0, 0, 0, redLineY);
+          gTop.addColorStop(0, 'rgba(225, 29, 72, 0.16)');
+          gTop.addColorStop(1, 'rgba(225, 29, 72, 0.05)');
+          sctx.fillStyle = gTop;
+          sctx.fillRect(0, 0, w, Math.min(h, redLineY));
+        }
+        if (startLineY < h) {
+          sctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+          sctx.fillRect(0, Math.max(0, startLineY), w, h - Math.max(0, startLineY));
+        }
+        if (state.showWeights) {
+          for (let y = range.minY; y <= range.maxY; y++) {
+            for (let x = range.minX; x <= range.maxX; x++) {
+              const d = distToT(x, y);
+              const wt = d < PHI_POW.length ? PHI_POW[d] : 0;
+              if (wt <= 0.015) continue;
+              const p = worldToScreen(x, y);
+              const alpha = Math.min(0.24, wt * 0.26);
+              sctx.fillStyle = y >= 5 ? 'rgba(244, 63, 94, ' + alpha + ')' : 'rgba(245, 158, 11, ' + alpha + ')';
+              sctx.fillRect(p[0] - cs / 2 + 1, p[1] - cs / 2 + 1, cs - 2, cs - 2);
+            }
+          }
+        }
+        sctx.lineWidth = 1;
+        for (let pass = 0; pass < 2; pass++) {
+          const rose = pass === 1;
+          sctx.beginPath();
+          sctx.strokeStyle = rose ? 'rgba(244, 63, 94, 0.14)' : 'rgba(51, 65, 85, 0.38)';
+          for (let y = range.minY; y <= range.maxY; y++) {
+            if ((y >= 5) !== rose) continue;
+            for (let x = range.minX; x <= range.maxX; x++) {
+              const p = worldToScreen(x, y);
+              sctx.rect(p[0] - cs / 2, p[1] - cs / 2, cs, cs);
+            }
+          }
+          sctx.stroke();
+        }
+        if (state.showWeights && cs >= 28) {
+          sctx.font = Math.max(9, Math.floor(cs * 0.22)) + 'px ' + MONO;
+          sctx.textAlign = 'center';
+          sctx.textBaseline = 'middle';
+          const gutter = insets.left + 50;
+          for (let y = range.minY; y <= range.maxY; y++) {
+            for (let x = range.minX; x <= range.maxX; x++) {
+              if (hasPeg(x, y) || (x === state.targetX && y === 5)) continue;
+              const p = worldToScreen(x, y);
+              if (p[0] < gutter || p[0] > w - insets.right - 8) continue;
+              if (Math.abs(p[1] - redLineY) < 14 && Math.abs(p[0] - w / 2) < Math.min(160, w * 0.4)) continue;
+              const d = distToT(x, y);
+              sctx.fillStyle = 'rgba(203, 213, 225, 0.7)';
+              sctx.fillText(d === 0 ? '1' : 'φ' + toSup(d), p[0], p[1]);
+            }
+          }
+        }
+        sctx.save();
+        sctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+        sctx.lineWidth = 1.6;
+        sctx.setLineDash([6, 5]);
+        sctx.beginPath();
+        sctx.moveTo(0, startLineY);
+        sctx.lineTo(w, startLineY);
+        sctx.stroke();
+        sctx.restore();
+
+        sctx.save();
+        sctx.shadowColor = 'rgba(244, 63, 94, 0.85)';
+        sctx.shadowBlur = 12;
+        sctx.strokeStyle = '#f43f5e';
+        sctx.lineWidth = 2.6;
+        sctx.beginPath();
+        sctx.moveTo(0, redLineY);
+        sctx.lineTo(w, redLineY);
+        sctx.stroke();
+        sctx.shadowBlur = 0;
+        const lbl = w < 520 ? '四格红线 · y = 5' : '四格红线 · 有限步不可逾越 (y = 5)';
+        sctx.font = '700 11px ' + SANS;
+        let tw = sctx.measureText(lbl).width;
+        const maxPill = Math.max(80, w - insets.left - insets.right - 24);
+        if (tw + 18 > maxPill) {
+          sctx.font = '700 10px ' + SANS;
+          tw = Math.min(sctx.measureText(lbl).width, maxPill - 18);
+        }
+        const pw = Math.min(maxPill, tw + 18);
+        const px = clamp(w / 2 - pw / 2, insets.left + 8, Math.max(insets.left + 8, w - insets.right - 8 - pw));
+        sctx.fillStyle = '#881337';
+        roundRect(sctx, px, redLineY - 11, pw, 22, 11);
+        sctx.fill();
+        sctx.strokeStyle = '#fb7185';
+        sctx.lineWidth = 1;
+        sctx.stroke();
+        sctx.fillStyle = '#ffe4e6';
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        sctx.fillText(lbl, px + pw / 2, redLineY + 0.5, pw - 14);
+        sctx.restore();
+
+        sctx.save();
+        sctx.font = '600 10px ' + MONO;
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        for (let y = range.minY; y <= range.maxY; y++) {
+          const cy = worldToScreen(0, y)[1];
+          if (cy < insets.headerBottom + 10 || cy > insets.footerTop - 10) continue;
+          const text = 'y=' + y;
+          const lw = sctx.measureText(text).width;
+          const pillW = Math.max(34, lw + 10);
+          sctx.fillStyle = 'rgba(6, 9, 17, 0.82)';
+          roundRect(sctx, insets.left + 6, cy - 9, pillW, 18, 5);
+          sctx.fill();
+          sctx.fillStyle = y === 5 ? '#fb7185' : (y >= 1 && y <= 4 ? '#34d399' : '#64748b');
+          sctx.fillText(text, insets.left + 6 + pillW / 2, cy + 0.5);
+        }
+        sctx.restore();
+
+        const t = worldToScreen(state.targetX, 5);
+        sctx.fillStyle = '#fda4af';
+        sctx.font = '700 10px ' + MONO;
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        sctx.fillText('T', t[0], t[1] - cs * 0.28);
+      }
+
+      function drawPeg(px, py, r, above, selected, hovered) {
+        const sprite = above ? pegAbove : pegBelow;
+        const drawR = hovered && !selected ? r * 1.06 : r;
+        const display = drawR * (sprite.size / sprite.radius);
+        if (selected) {
+          ctx.save();
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(px, py, drawR, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.02)';
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.drawImage(sprite.canvas, px - display / 2, py - display / 2, display, display);
+        if (selected) {
+          ctx.beginPath();
+          ctx.arc(px, py, drawR + 1.5, 0, Math.PI * 2);
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.stroke();
+        }
+      }
+      function drawDynamic(now) {
+        const range = visibleRange();
+        const cs = range.cs;
+        const tpos = worldToScreen(state.targetX, 5);
+        const pulse = reduceMotion ? 0.85 : (0.6 + 0.4 * Math.sin(now / 320));
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251, 113, 133, ' + pulse + ')';
+        ctx.lineWidth = 2;
+        roundRect(ctx, tpos[0] - cs / 2 + 3, tpos[1] - cs / 2 + 3, cs - 6, cs - 6, 6);
+        ctx.stroke();
+        ctx.restore();
+
+        if (state.isEndgamePreset && !hasPeg(2, -1)) {
+          const hole = worldToScreen(2, -1);
+          const p2 = reduceMotion ? 0.9 : (0.55 + 0.45 * Math.sin(now / 280));
+          ctx.save();
+          ctx.strokeStyle = 'rgba(251, 191, 36, ' + p2 + ')';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.arc(hole[0], hole[1], Math.max(5, cs * 0.34), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (cs >= 22) {
+            ctx.fillStyle = '#fde68a';
+            ctx.font = '700 ' + Math.max(8, Math.floor(cs * 0.24)) + 'px ' + SANS;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('差1子', hole[0], hole[1]);
+          }
+          ctx.restore();
+        }
+
+        state.ripples = state.ripples.filter(function (r) { return now - r.startTime < 440; });
+        state.ripples.forEach(function (r) {
+          const u = (now - r.startTime) / 440;
+          const p = worldToScreen(r.x, r.y);
+          ctx.save();
+          ctx.globalAlpha = 1 - u;
+          ctx.strokeStyle = r.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * (0.2 + 0.46 * u), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        const active = state.dragPeg ? { x: state.dragPeg.sx, y: state.dragPeg.sy } : state.selected;
+        const jumps = active ? validJumps(active.x, active.y) : [];
+        jumps.forEach(function (j) {
+          const p = worldToScreen(j.dx, j.dy);
+          const hot = state.hoverCell && state.hoverCell[0] === j.dx && state.hoverCell[1] === j.dy;
+          ctx.save();
+          ctx.fillStyle = hot ? 'rgba(16, 185, 129, 0.36)' : 'rgba(16, 185, 129, 0.18)';
+          ctx.strokeStyle = hot ? '#6ee7b7' : '#10b981';
+          ctx.lineWidth = hot ? 2.5 : 2;
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * (hot ? 0.33 : 0.29), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#34d399';
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        const radius = Math.max(4, cs * 0.34);
+        function skip(x, y) {
+          if (state.anim && x === state.anim.dx && y === state.anim.dy) return true;
+          return !!(state.dragPeg && state.dragPeg.moved && x === state.dragPeg.sx && y === state.dragPeg.sy);
+        }
+        const yTop = Math.min(range.maxY, 0);
+        for (let y = range.minY; y <= yTop; y++) {
+          for (let x = range.minX; x <= range.maxX; x++) {
+            if (state.removedBelow.has(keyOf(x, y)) || skip(x, y)) continue;
+            const p = worldToScreen(x, y);
+            const sel = state.selected && state.selected.x === x && state.selected.y === y;
+            const hov = state.hoverCell && state.hoverCell[0] === x && state.hoverCell[1] === y;
+            drawPeg(p[0], p[1], radius, false, sel, hov);
+          }
+        }
+        state.addedAbove.forEach(function (k) {
+          const xy = parseKey(k);
+          if (xy[0] < range.minX || xy[0] > range.maxX || xy[1] < range.minY || xy[1] > range.maxY || skip(xy[0], xy[1])) return;
+          const p = worldToScreen(xy[0], xy[1]);
+          const sel = state.selected && state.selected.x === xy[0] && state.selected.y === xy[1];
+          const hov = state.hoverCell && state.hoverCell[0] === xy[0] && state.hoverCell[1] === xy[1];
+          drawPeg(p[0], p[1], radius, true, sel, hov);
+        });
+
+        if (state.dragPeg && state.dragPeg.moved) {
+          drawPeg(state.dragPeg.curScreenX, state.dragPeg.curScreenY - 6, radius * 1.12, state.dragPeg.sy > 0, true, false);
+        }
+        if (state.anim) {
+          const a = state.anim;
+          const u = a.duration <= 0 ? 1 : Math.min(1, (now - a.startTime) / a.duration);
+          const eased = reduceMotion ? u : (1 - Math.pow(1 - u, 3));
+          const p = worldToScreen(a.sx + (a.dx - a.sx) * eased, a.sy + (a.dy - a.sy) * eased);
+          const lift = reduceMotion ? 0 : Math.sin(u * Math.PI) * cs * 0.36;
+          drawPeg(p[0], p[1] - lift, radius, a.dy > 0, true, false);
+          if (u >= 1) state.anim = null;
+        }
+        state.floatTexts = state.floatTexts.filter(function (f) { return now - f.startTime < (reduceMotion ? 400 : 900); });
+        state.floatTexts.forEach(function (f) {
+          const life = reduceMotion ? 400 : 900;
+          const u = (now - f.startTime) / life;
+          const p = worldToScreen(f.wx, f.wy);
+          ctx.save();
+          ctx.globalAlpha = u < 0.2 ? u / 0.2 : 1 - (u - 0.2) / 0.8;
+          ctx.font = '700 12px ' + MONO;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = f.color;
+          ctx.fillText(f.text, p[0], p[1] - u * 26);
+          ctx.restore();
+        });
+      }
+      function render(now) {
+        if (!canvas.width || !canvas.height) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (staticDirty) {
+          drawStatic();
+          staticDirty = false;
+        }
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(staticCanvas, 0, 0);
+        ctx.restore();
+        drawDynamic(now);
+      }
+      function isActive() {
+        return !!(state.anim || state.ripples.length || state.floatTexts.length || state.dragPeg || state.pinch || state.isPanning || (state.isEndgamePreset && !reduceMotion));
+      }
+      function loop(now) {
+        rafId = 0;
+        const active = isActive();
+        if (needsFrame || active || (!reduceMotion && now - lastDraw > 80)) {
+          needsFrame = false;
+          lastDraw = now;
+          render(now);
+        }
+        if (!document.hidden && (active || !reduceMotion || needsFrame)) rafId = requestAnimationFrame(loop);
+      }
+      function requestRender() {
+        needsFrame = true;
+        if (document.hidden) return;
+        if (!rafId) rafId = requestAnimationFrame(loop);
+      }
+
+      function canvasPoint(e) {
+        const r = canvas.getBoundingClientRect();
+        return [e.clientX - r.left, e.clientY - r.top];
+      }
+      function beginPinch() {
+        const pts = Array.from(pointers.values());
+        if (pts.length < 2) return;
+        state.dragPeg = null;
+        state.isPanning = false;
+        state.hasDragged = true;
+        state.viewCustom = true;
+        canvasWrap.classList.remove('is-panning');
+        const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        state.pinch = {
+          dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+          size: state.cellSize,
+          wx: state.camX + (mx - w / 2) / state.cellSize,
+          wy: state.camY - (my - h / 2) / state.cellSize
+        };
+      }
+      function applyPinch() {
+        if (!state.pinch) return;
+        const pts = Array.from(pointers.values());
+        if (pts.length < 2) return;
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
+        const size = clamp(state.pinch.size * (dist / state.pinch.dist), 16, 84);
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        state.cellSize = size;
+        state.camX = state.pinch.wx - (mx - w / 2) / size;
+        state.camY = state.pinch.wy + (my - h / 2) / size;
+        staticDirty = true;
+        requestRender();
+      }
+      function resetDrag() {
+        state.dragPeg = null;
+        state.isPanning = false;
+        state.pinch = null;
+        state.hoverCell = null;
+        canvasWrap.classList.remove('is-panning');
+      }
+      function onPointerDown(e) {
+        ensureAudio();
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        const pt = canvasPoint(e);
+        pointers.set(e.pointerId, { x: pt[0], y: pt[1] });
+        if (pointers.size >= 2) { beginPinch(); return; }
+        const cell = screenToWorld(pt[0], pt[1]);
+        state.hasDragged = false;
+        state.panStartScreen = pt;
+        state.panStartCam = [state.camX, state.camY];
+        state.dragPeg = null;
+        state.pinch = null;
+        if (hasPeg(cell[0], cell[1]) && validJumps(cell[0], cell[1]).length && e.button === 0 && !e.shiftKey) {
+          state.dragPeg = { sx: cell[0], sy: cell[1], startX: pt[0], startY: pt[1], curScreenX: pt[0], curScreenY: pt[1], moved: false };
+        } else state.isPanning = true;
+      }
+      function onPointerMove(e) {
+        if (!pointers.has(e.pointerId)) return;
+        const pt = canvasPoint(e);
+        pointers.set(e.pointerId, { x: pt[0], y: pt[1] });
+        const cell = screenToWorld(pt[0], pt[1]);
+        state.hoverCell = cell;
+        if (pointers.size >= 2) { applyPinch(); return; }
+        if (state.dragPeg) {
+          if (Math.hypot(pt[0] - state.dragPeg.startX, pt[1] - state.dragPeg.startY) > 8) {
+            state.dragPeg.moved = true;
+            state.hasDragged = true;
+          }
+          state.dragPeg.curScreenX = pt[0];
+          state.dragPeg.curScreenY = pt[1];
+          requestRender();
+          return;
+        }
+        if (state.isPanning && state.panStartScreen) {
+          const dx = pt[0] - state.panStartScreen[0];
+          const dy = pt[1] - state.panStartScreen[1];
+          if (Math.hypot(dx, dy) > 5) {
+            state.hasDragged = true;
+            state.viewCustom = true;
+            canvasWrap.classList.add('is-panning');
+            state.camX = state.panStartCam[0] - dx / state.cellSize;
+            state.camY = state.panStartCam[1] + dy / state.cellSize;
+            staticDirty = true;
+          }
+        }
+        requestRender();
+      }
+      function onPointerUp(e, cancelled) {
+        pointers.delete(e.pointerId);
+        if (pointers.size >= 2) { beginPinch(); return; }
+        if (state.pinch || pointers.size > 0) {
+          state.pinch = null;
+          state.hasDragged = true;
+          resetDrag();
+          return;
+        }
+        if (cancelled) { resetDrag(); return; }
+        const pt = canvasPoint(e);
+        const cell = screenToWorld(pt[0], pt[1]);
+        if (state.dragPeg && state.dragPeg.moved) {
+          const dp = state.dragPeg;
+          state.dragPeg = null;
+          const match = validJumps(dp.sx, dp.sy).find(function (j) { return j.dx === cell[0] && j.dy === cell[1]; });
+          if (match) jump(dp.sx, dp.sy, cell[0], cell[1]);
+          else state.selected = { x: dp.sx, y: dp.sy };
+          state.hoverCell = null;
+          requestRender();
+          return;
+        }
+        state.dragPeg = null;
+        state.isPanning = false;
+        canvasWrap.classList.remove('is-panning');
+        state.hoverCell = null;
+        if (state.hasDragged) return;
+        if (cell[1] === 5) {
+          state.targetX = cell[0];
+          playTone(500, 0.04, 'sine', 0.045, 420);
+          staticDirty = true;
+          updateHUD();
+          return;
+        }
+        if (state.selected) {
+          const match = validJumps(state.selected.x, state.selected.y).find(function (j) { return j.dx === cell[0] && j.dy === cell[1]; });
+          if (match) { jump(state.selected.x, state.selected.y, cell[0], cell[1]); return; }
+        }
+        if (hasPeg(cell[0], cell[1])) {
+          if (state.selected && state.selected.x === cell[0] && state.selected.y === cell[1]) state.selected = null;
+          else {
+            state.selected = { x: cell[0], y: cell[1] };
+            playTone(500, 0.04, 'sine', 0.045, 400);
+          }
+        } else state.selected = null;
+        requestRender();
+      }
+
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', function (e) { onPointerUp(e, false); });
+      canvas.addEventListener('pointercancel', function (e) { onPointerUp(e, true); });
+      canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      canvas.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        const pt = canvasPoint(e);
+        zoomAt(pt[0], pt[1], e.deltaY < 0 ? 1.12 : 0.89);
+      }, { passive: false });
+      document.addEventListener('touchmove', function (e) {
+        if (e.target.closest && e.target.closest('.toast')) return;
+        e.preventDefault();
+      }, { passive: false });
+
+      btnUndo.addEventListener('click', undo);
+      btnReset.addEventListener('click', resetGame);
+      btnEndgame.addEventListener('click', loadExtremeEndgame);
+      btnCenter.addEventListener('click', function () { layout(); fitCurrent(); });
+      btnZoomIn.addEventListener('click', function () { zoomCenter(1.18); });
+      btnZoomOut.addEventListener('click', function () { zoomCenter(1 / 1.18); });
+      btnWeights.addEventListener('click', function () {
+        state.showWeights = !state.showWeights;
+        btnWeights.classList.toggle('is-on', state.showWeights);
+        btnWeights.setAttribute('aria-pressed', state.showWeights ? 'true' : 'false');
+        staticDirty = true;
+        requestRender();
+      });
+      btnSound.addEventListener('click', function () {
+        state.soundEnabled = !state.soundEnabled;
+        svgSoundOn.hidden = !state.soundEnabled;
+        svgSoundOff.hidden = state.soundEnabled;
+        btnSound.setAttribute('aria-pressed', state.soundEnabled ? 'true' : 'false');
+        if (state.soundEnabled) playTone(500, 0.04, 'sine', 0.04, 400);
+      });
+
+      window.addEventListener('keydown', function (e) {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key === 'Escape') { state.selected = null; requestRender(); return; }
+        const k = e.key.toLowerCase();
+        if (k === 'z') { undo(); return; }
+        if (k === 'r') { resetGame(); return; }
+        if (k === '0' || e.key === 'Home') { layout(); fitCurrent(); return; }
+        if (k === '+' || k === '=') { zoomCenter(1.18); return; }
+        if (k === '-' || k === '_') { zoomCenter(1 / 1.18); return; }
+        const pan = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1], a: [-1, 0], d: [1, 0], w: [0, 1], s: [0, -1] };
+        if (!pan[k]) return;
+        e.preventDefault();
+        if (state.selected) {
+          jump(state.selected.x, state.selected.y, state.selected.x + pan[k][0] * 2, state.selected.y + pan[k][1] * 2);
+          return;
+        }
+        state.camX += pan[k][0];
+        state.camY += pan[k][1];
+        state.viewCustom = true;
+        staticDirty = true;
+        requestRender();
+      });
+
+      function onWindowResize() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const big = Math.abs(w - lastBox.w) > 80 || Math.abs(h - lastBox.h) > 140;
+        lastBox = { w: w, h: h };
+        layout();
+        if (big) {
+          state.viewCustom = false;
+          fitCurrent();
+        } else requestRender();
+      }
+      window.addEventListener('resize', onWindowResize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onWindowResize);
+        window.visualViewport.addEventListener('scroll', onWindowResize);
+      }
+      motionMq.addEventListener('change', function () { reduceMotion = motionMq.matches; requestRender(); });
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = 0;
+        } else requestRender();
+      });
+      const ro = new ResizeObserver(function () {
+        const prev = insets.footerTop - insets.headerBottom;
+        layout();
+        const free = insets.footerTop - insets.headerBottom;
+        if (!state.viewCustom && Math.abs(free - prev) > 24) fitCurrent();
+        else requestRender();
+      });
+      ro.observe(topbar);
+      ro.observe(actionDock);
+
+      layout();
+      updateHUD();
+      layout();
+      fitCurrent();
+      requestRender();
+    })();
+  </script>
+</body>
+</html>

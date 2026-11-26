@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#060911" />
+  <meta name="description" content="康威的士兵：用黄金比例势能验证，为什么有限步跳不过第四格红线。" />
+  <title>康威的士兵 · 四格红线验证</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23060911' width='32' height='32' rx='8'/%3E%3Ccircle cx='16' cy='18' r='7' fill='%23f59e0b'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #060911;
+      --sat: env(safe-area-inset-top, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --header-bottom: 132px;
+      --footer-top: calc(100dvh - 88px);
+      --sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: var(--vvh, 100dvh);
+      overflow: hidden;
+      background: var(--bg);
+      color: #f1f5f9;
+      font-family: var(--sans);
+      overscroll-behavior: none;
+    }
+    body { user-select: none; -webkit-user-select: none; }
+    button, input { font: inherit; color: inherit; }
+    button {
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    button:focus-visible, a:focus-visible, canvas:focus-visible {
+      outline: 2px solid #fbbf24;
+      outline-offset: 2px;
+    }
+    button:disabled { opacity: 0.35; cursor: default; }
+    [hidden] { display: none !important; }
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0);
+      white-space: nowrap; border: 0;
+    }
+    .skip {
+      position: fixed;
+      left: calc(8px + var(--sal));
+      top: calc(8px + var(--sat));
+      z-index: 80;
+      transform: translateY(-150%);
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 10px;
+    }
+    .skip:focus { transform: none; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .dim { color: #94a3b8; }
+    .em-amber { color: #fcd34d; font-weight: 700; }
+    .em-rose { color: #fb7185; font-weight: 700; }
+    .em-green { color: #34d399; font-weight: 700; }
+    .em-sky { color: #7dd3fc; font-weight: 700; }
+    #safeProbe {
+      position: fixed;
+      left: 0; top: 0;
+      width: 0; height: 0;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #canvasWrap {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      width: var(--vvw, 100%);
+      height: var(--vvh, 100dvh);
+      cursor: grab;
+    }
+    #canvasWrap.is-panning { cursor: grabbing; }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .glass {
+      background: rgba(13, 19, 33, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .glass-strong {
+      background: rgba(11, 16, 29, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .topbar {
+      position: fixed;
+      z-index: 40;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: calc(8px + var(--sat)) calc(8px + var(--sar)) 6px calc(8px + var(--sal));
+      pointer-events: none;
+    }
+    .topbar > * { pointer-events: auto; max-width: 100%; min-width: 0; }
+    .cluster { position: relative; min-width: 0; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      max-width: 100%;
+      padding: 6px;
+      border-radius: 16px;
+    }
+    .phi {
+      flex: none;
+      width: 32px; height: 32px;
+      border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, #fcd34d, #f59e0b 55%, #e11d48);
+      color: #0f172a;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(136, 19, 55, 0.45);
+    }
+    .brand-text { display: none; min-width: 0; }
+    .brand-title { font-size: 13px; font-weight: 800; line-height: 1.1; }
+    .brand-sub { margin-top: 2px; font-size: 10px; color: #94a3b8; line-height: 1.1; }
+    .brand-sep { display: none; width: 1px; height: 20px; background: rgba(51, 65, 85, 0.9); flex: none; }
+    .ver-link {
+      flex: none;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 10px;
+      color: #7dd3fc;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .level-btn {
+      flex: 1;
+      min-width: 0;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(51, 65, 85, 0.75);
+      color: #fcd34d;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .level-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chevron { width: 16px; height: 16px; flex: none; color: #94a3b8; transition: transform 0.16s ease; }
+    .chevron.is-open { transform: rotate(180deg); }
+    .telemetry {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px 10px;
+      padding: 8px 12px;
+      border-radius: 16px;
+      text-align: left;
+    }
+    .stat { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; min-width: 0; }
+    .stat-k { display: none; color: #94a3b8; font-size: 12px; }
+    .stat-sep { width: 1px; height: 16px; background: rgba(51, 65, 85, 0.9); flex: none; }
+    .dot { color: #475569; }
+    .pot { flex: 1 1 140px; min-width: 120px; max-width: 220px; }
+    .pot-line { display: flex; align-items: baseline; gap: 4px; font-size: 13px; line-height: 1; }
+    .pot-sig { color: #fbbf24; font-weight: 800; }
+    .pot-cap { color: #fb7185; font-size: 11px; }
+    .bar {
+      display: block;
+      height: 4px;
+      margin-top: 6px;
+      border-radius: 999px;
+      background: #1e293b;
+      overflow: hidden;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #38bdf8, #fbbf24, #f43f5e);
+    }
+    .icon-dock {
+      display: flex;
+      gap: 4px;
+      width: 100%;
+      padding: 4px;
+      border-radius: 16px;
+    }
+    .icon-btn {
+      position: relative;
+      flex: 1 1 0;
+      min-width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      color: #cbd5e1;
+    }
+    .icon-btn svg { width: 18px; height: 18px; display: block; }
+    .icon-btn.active-icon {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.42);
+    }
+    .icon-btn:active { transform: scale(0.96); }
+    .popover-panel {
+      z-index: 50;
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.98);
+      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.18s;
+    }
+    .popover-panel.panel-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: none;
+    }
+    #panelLevels, #panelPotential, #panelPresets {
+      position: fixed;
+      left: calc(8px + var(--sal));
+      right: calc(8px + var(--sar));
+      top: calc(var(--header-bottom) + 8px);
+      width: auto;
+      max-height: max(140px, calc(var(--footer-top) - var(--header-bottom) - 16px));
+      border-radius: 16px;
+    }
+    #panelLevels { padding: 8px; }
+    #panelPotential, #panelPresets { padding: 14px; }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .panel-kicker { font-size: 12px; font-weight: 700; color: #94a3b8; }
+    .panel-head h2 { margin: 0; font-size: 14px; line-height: 1.3; }
+    .panel-sub { margin: 4px 0 0; font-size: 12px; color: #94a3b8; line-height: 1.45; }
+    .panel-head-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+    .panel-x {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.9);
+      color: #e2e8f0;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .level-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .level-item {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      text-align: left;
+      color: #e2e8f0;
+    }
+    .level-item > span:first-child { min-width: 0; }
+    .level-item b { display: block; font-size: 13px; }
+    .level-item small { display: block; margin-top: 2px; color: #94a3b8; font-size: 11px; }
+    .level-item.is-current { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); }
+    .level-sep { height: 1px; margin: 4px 0; background: #1e293b; }
+    .badge {
+      flex: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .badge-green { background: #1e293b; color: #6ee7b7; }
+    .badge-amber { background: #1e293b; color: #fcd34d; }
+    .badge-rose { background: rgba(244, 63, 94, 0.15); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+    .badge-sky { background: rgba(14, 165, 233, 0.15); color: #7dd3fc; }
+    .fmt {
+      display: inline-flex;
+      padding: 2px;
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.9);
+      border: 1px solid #1e293b;
+    }
+    .fmt button { min-width: 44px; min-height: 36px; padding: 4px 8px; border-radius: 8px; color: #94a3b8; font-size: 12px; }
+    .fmt button.is-on { background: #1e293b; color: #fcd34d; font-weight: 700; }
+    .meter-card {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid rgba(30, 41, 59, 0.95);
+    }
+    .meter-top, .meter-scale { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .meter-top { font-size: 12px; color: #94a3b8; }
+    #potentialVal { font-size: 20px; color: #fbbf24; }
+    .meter-card .bar { height: 8px; margin-top: 10px; }
+    .meter-scale { margin-top: 6px; font-size: 11px; color: #64748b; }
+    .verdict { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid rgba(30, 41, 59, 0.9); font-size: 12px; line-height: 1.55; color: #cbd5e1; }
+    .log-head { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .jump-log { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .log-empty { padding: 12px 4px; text-align: center; color: #64748b; font-size: 12px; }
+    .log-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 10px; border-radius: 12px;
+      background: rgba(2, 6, 23, 0.72); border: 1px solid rgba(30, 41, 59, 0.9);
+      font-size: 12px;
+    }
+    .log-left { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+    .log-type { color: #94a3b8; font-size: 11px; }
+    .log-delta { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid; white-space: nowrap; }
+    .log-delta.is-zero { color: #6ee7b7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
+    .log-delta.is-neg { color: #fda4af; background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.35); }
+    .mission { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: #cbd5e1; }
+    .block-label { margin: 12px 0 8px; padding-top: 10px; border-top: 1px solid rgba(30, 41, 59, 0.9); font-size: 12px; color: #94a3b8; }
+    .fill-infinite, .text-btn, .fill-btn {
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      background: rgba(30, 41, 59, 0.85);
+      color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .fill-infinite {
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      text-align: left;
+      white-space: normal;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(244, 63, 94, 0.18));
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fde68a;
+    }
+    .fill-infinite > span:first-child { min-width: 0; }
+    .fill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+    .fill-btn { padding: 6px; }
+    .fill-btn small, .fill-infinite small { display: block; font-weight: 500; color: #94a3b8; font-size: 10px; }
+    .clear-row {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid rgba(30, 41, 59, 0.9);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+      font-size: 12px; color: #94a3b8;
+    }
+    .text-btn { padding: 8px 12px; background: rgba(136, 19, 55, 0.55); border-color: rgba(159, 18, 57, 0.8); color: #fecdd3; }
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      background: rgba(2, 6, 23, 0.38);
+    }
+    .toast-box {
+      position: fixed;
+      z-index: 32;
+      left: calc(8px + var(--sal));
+      right: calc(8px + var(--sar));
+      top: calc(var(--header-bottom) + 6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .toast {
+      max-width: 100%;
+      padding: 8px 12px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.45;
+      text-align: center;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(10px);
+    }
+    .toast-info { background: rgba(15, 23, 42, 0.92); border-color: rgba(51, 65, 85, 0.9); color: #f1f5f9; }
+    .toast-success { background: rgba(6, 78, 59, 0.92); border-color: rgba(16, 185, 129, 0.45); color: #a7f3d0; }
+    .toast-warn { background: rgba(120, 53, 15, 0.92); border-color: rgba(245, 158, 11, 0.45); color: #fde68a; }
+    .toast-danger { background: rgba(136, 19, 55, 0.92); border-color: rgba(244, 63, 94, 0.45); color: #fecdd3; }
+    .footer {
+      position: fixed;
+      z-index: 40;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: center;
+      padding: 0 calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal));
+      pointer-events: none;
+    }
+    .dock {
+      pointer-events: auto;
+      width: min(100%, 760px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border-radius: 16px;
+    }
+    .mode-switch {
+      display: inline-flex;
+      padding: 2px;
+      border-radius: 12px;
+      background: rgba(2, 6, 23, 0.8);
+      border: 1px solid rgba(30, 41, 59, 0.95);
+    }
+    .mode-btn, .demo-btn {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .mode-btn svg, .demo-btn svg { width: 16px; height: 16px; flex: none; }
+    #modePlay.is-on { background: #f59e0b; color: #0f172a; }
+    #modeEdit.is-on { background: #0ea5e9; color: #0f172a; }
+    .demo-btn {
+      background: #f59e0b;
+      color: #0f172a;
+      box-shadow: 0 6px 16px rgba(120, 53, 15, 0.35);
+      white-space: nowrap;
+    }
+    .demo-btn.is-stop { background: #f43f5e; color: #fff; box-shadow: 0 6px 16px rgba(136, 19, 55, 0.35); }
+    .dock .icon-btn { flex: none; width: 44px; }
+    .zoom-group { display: inline-flex; align-items: center; gap: 2px; }
+    #btnCenter { width: auto; min-width: 44px; padding: 0 10px; font-size: 12px; font-weight: 700; }
+    .hint {
+      display: none;
+      position: fixed;
+      z-index: 20;
+      left: calc(12px + var(--sal));
+      bottom: calc(100dvh - var(--footer-top) + 10px);
+      max-width: min(280px, 30vw);
+      margin: 0;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.66);
+      border: 1px solid rgba(30, 41, 59, 0.85);
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.4;
+      pointer-events: none;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal));
+      background: rgba(2, 6, 23, 0.75);
+      backdrop-filter: blur(8px);
+    }
+    .modal.is-open { display: flex; }
+    .modal-card {
+      width: min(640px, 100%);
+      min-width: 0;
+      max-width: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      overscroll-behavior: contain;
+      border-radius: 24px;
+      padding: 0;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .modal-head {
+      flex: none;
+      margin: 0;
+      padding: 16px 16px 12px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      background: #0b101d;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.95);
+    }
+    .modal-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 16px 16px;
+      touch-action: pan-y;
+    }
+    .modal-head h2 { margin: 0; font-size: 18px; line-height: 1.35; }
+    .modal-head p { margin: 4px 0 0; color: #94a3b8; font-size: 12px; }
+    .modal-card h3 { margin: 0 0 6px; font-size: 14px; }
+    .proof-card {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(30, 41, 59, 0.95);
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .proof-card ul { margin: 8px 0 0; padding-left: 1.1em; }
+    .proof-card li + li { margin-top: 6px; }
+    .formula {
+      margin: 8px 0;
+      padding: 10px;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #fcd34d;
+      text-align: center;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .note {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(30, 41, 59, 0.45);
+      border: 1px solid rgba(30, 41, 59, 0.9);
+      color: #94a3b8;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .modal-actions {
+      flex: none;
+      display: flex;
+      justify-content: flex-end;
+      padding: 12px 16px calc(12px + var(--sab));
+      border-top: 1px solid rgba(30, 41, 59, 0.95);
+      background: #0b101d;
+    }
+    .modal-actions button {
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .h-amber { color: #fcd34d; }
+    .h-green { color: #6ee7b7; }
+    .h-rose { color: #fda4af; }
+    .noscript {
+      position: fixed;
+      z-index: 80;
+      left: calc(16px + var(--sal));
+      right: calc(16px + var(--sar));
+      top: 50%;
+      transform: translateY(-50%);
+      text-align: center;
+      line-height: 1.5;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.28); border-radius: 999px; }
+    @media (hover: hover) and (pointer: fine) {
+      .level-btn:hover, .icon-btn:hover, .level-item:hover, .fill-btn:hover, .text-btn:hover { background: rgba(51, 65, 85, 0.9); }
+      .telemetry:hover { border-color: rgba(245, 158, 11, 0.45); }
+      .demo-btn:hover { filter: brightness(1.05); }
+      .level-item.is-current:hover { background: rgba(245, 158, 11, 0.22); }
+    }
+    @media (min-width: 640px) and (min-height: 560px) {
+      .brand-text, .brand-sep, .stat-k { display: block; }
+      .stat-k { display: inline; }
+    }
+    @media (max-height: 560px) {
+      .topbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        padding-top: calc(4px + var(--sat));
+        padding-bottom: 4px;
+      }
+      .brand { padding: 4px; }
+      .phi { width: 28px; height: 28px; }
+      .level-btn, .icon-btn, .mode-btn, .demo-btn, .panel-x, .ver-link { min-height: 40px; height: 40px; }
+      .telemetry { width: auto; flex: 1 1 180px; min-height: 40px; padding: 4px 8px; }
+      .telemetry .bar { display: none; }
+      .pot { min-width: 0; flex-basis: 110px; }
+      .icon-dock { width: auto; flex: 1 1 auto; justify-content: flex-end; }
+      .icon-btn { flex: none; width: 40px; min-width: 40px; }
+      .footer { padding-bottom: calc(4px + var(--sab)); }
+      .modal-card { border-radius: 16px; }
+      .modal-head { padding: 12px; }
+      .modal-head h2 { font-size: 16px; }
+      .modal-scroll { padding: 4px 12px 12px; }
+    }
+    @media (max-width: 380px) {
+      .mode-btn, .demo-btn { padding: 8px 8px; gap: 4px; }
+      .dock { gap: 4px; padding: 4px; }
+    }
+    @media (min-width: 840px) and (min-height: 561px) {
+      .topbar {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .brand { flex: none; }
+      .level-btn { flex: none; min-height: 32px; }
+      .ver-link { min-height: 32px; height: auto; }
+      .telemetry { width: auto; flex: none; }
+      .pot { flex: none; min-width: 132px; }
+      .icon-dock { width: auto; }
+      .icon-btn { flex: none; width: 36px; min-width: 36px; height: 36px; }
+      .panel-x { width: 32px; height: 32px; }
+      #panelLevels, #panelPotential, #panelPresets {
+        position: absolute;
+        top: calc(100% + 8px);
+        bottom: auto;
+        max-height: min(70dvh, 620px);
+      }
+      #panelLevels { left: 0; right: auto; width: min(288px, calc(100vw - 24px)); }
+      #panelPotential { left: auto; right: 0; width: min(360px, calc(100vw - 24px)); }
+      #panelPresets { left: auto; right: 0; width: min(340px, calc(100vw - 24px)); }
+      .dock .icon-btn, .zoom-group .icon-btn { width: 36px; height: 36px; min-height: 36px; }
+      #btnCenter { min-height: 36px; height: 36px; }
+      .mode-btn, .demo-btn { min-height: 36px; }
+      .hint { display: block; }
+    }
+    @media (min-width: 1280px) and (min-height: 700px) {
+      .hint { display: block; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#actionDock">跳到操作栏</a>
+  <div id="app">
+    <div id="canvasWrap">
+      <canvas id="boardCanvas" tabindex="0" aria-label="康威士兵棋盘" aria-describedby="boardDesc"></canvas>
+    </div>
+    <p id="boardDesc" class="visually-hidden">棋盘画在画布上。跳跃模式先点棋子，再点绿色落点，或把棋子拖到绿圈。方向键也可跳跃。拖空白处平移，双指或滚轮缩放。点第 5 行可切换目标格。</p>
+    <button type="button" id="scrim" class="scrim" hidden aria-label="关闭面板"></button>
+
+    <header class="topbar" id="topbar">
+      <h1 class="visually-hidden">康威的士兵 · 四格红线验证</h1>
+      <div class="cluster" id="brandCluster">
+        <div class="glass brand">
+          <div class="phi" aria-hidden="true">φ</div>
+          <div class="brand-text">
+            <div class="brand-title">康威的士兵</div>
+            <div class="brand-sub">四格红线验证</div>
+          </div>
+          <div class="brand-sep" aria-hidden="true"></div>
+          <button type="button" id="btnLevelMenu" class="level-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="panelLevels">
+            <span id="currentLevelShort" class="level-label">第5格 (∞红线)</span>
+            <svg class="chevron" id="levelChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <a class="ver-link" href="v2.html">极简版</a>
+        </div>
+        <div id="panelLevels" class="popover-panel glass-strong" role="listbox" aria-label="选择验证关卡" aria-hidden="true">
+          <div class="panel-head">
+            <div class="panel-kicker">选择验证关卡</div>
+            <span class="mono dim">最少棋子数</span>
+            <button type="button" class="panel-x" data-close-panel aria-label="关闭关卡列表">×</button>
+          </div>
+          <div class="level-list" id="levelList">
+            <button type="button" data-level="1" class="level-item" role="option">
+              <span><b>第 1 格挑战</b><small>起步热身 · 1 步</small></span>
+              <span class="badge badge-green">2 子</span>
+            </button>
+            <button type="button" data-level="2" class="level-item" role="option">
+              <span><b>第 2 格挑战</b><small>横向补位 · 3 步</small></span>
+              <span class="badge badge-green">4 子</span>
+            </button>
+            <button type="button" data-level="3" class="level-item" role="option">
+              <span><b>第 3 格挑战</b><small>两翼汇聚 · 7 步</small></span>
+              <span class="badge badge-green">8 子</span>
+            </button>
+            <button type="button" data-level="4" class="level-item" role="option">
+              <span><b>第 4 格极限</b><small>触碰红线边缘 · 19 步</small></span>
+              <span class="badge badge-amber">20 子</span>
+            </button>
+            <button type="button" data-level="5" class="level-item" role="option">
+              <span><b class="h-rose">第 5 格 · 红线验证</b><small>有限步数学不可达</small></span>
+              <span class="badge badge-rose">∞ 无解</span>
+            </button>
+            <div class="level-sep"></div>
+            <button type="button" data-level="0" class="level-item" role="option">
+              <span><b class="h-sky">自由沙盒模式</b><small>任意在 y ≤ 0 布阵测试</small></span>
+              <span class="badge badge-sky">自由</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="btnTelemetryPill" class="glass telemetry" aria-expanded="false" aria-controls="panelPotential" title="点击展开黄金势能详情与跳跃日志">
+        <span class="stat"><span class="stat-k">最高</span><span id="hudMaxY" class="mono em-green">y=0</span></span>
+        <span class="stat-sep" aria-hidden="true"></span>
+        <span class="stat"><span class="stat-k">棋子</span><span id="hudPegs" class="mono em-amber">∞</span><span class="dot">·</span><span id="hudMoves" class="mono em-sky">0步</span></span>
+        <span class="stat-sep" aria-hidden="true"></span>
+        <span class="pot">
+          <span class="pot-line"><span class="pot-sig">Σ</span><span id="pillPotential" class="mono">1.000000</span><span class="pot-cap">/1</span></span>
+          <span class="bar" id="pillMeter" role="meter" aria-valuemin="0" aria-valuemax="1" aria-valuenow="1" aria-label="总势能占红线阈值的比例"><span id="pillBar"></span></span>
+        </span>
+      </button>
+
+      <div class="cluster" id="toolCluster">
+        <div class="glass icon-dock">
+          <button type="button" id="iconPotential" class="icon-btn" aria-expanded="false" aria-controls="panelPotential" title="黄金势能与跳跃日志" aria-label="黄金势能与跳跃日志">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </button>
+          <button type="button" id="iconPresets" class="icon-btn" aria-expanded="false" aria-controls="panelPresets" title="快捷布阵与关卡说明" aria-label="快捷布阵与关卡说明">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          </button>
+          <button type="button" id="iconWeightEye" class="icon-btn active-icon" aria-pressed="true" title="开关棋盘 φ 权重透视" aria-label="开关棋盘 φ 权重透视">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><line id="eyeSlash" x1="4" y1="4" x2="20" y2="20" hidden/></svg>
+          </button>
+          <button type="button" id="iconProof" class="icon-btn" title="查看康威数学证明" aria-label="查看康威数学证明" aria-haspopup="dialog" aria-controls="proofModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 10h6"/><path d="M9 14h4"/></svg>
+          </button>
+          <button type="button" id="iconSound" class="icon-btn" aria-pressed="true" title="开关音效" aria-label="开关音效">
+            <svg id="svgSoundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            <svg id="svgSoundOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>
+          </button>
+        </div>
+
+        <div id="panelPotential" class="popover-panel glass-strong" role="dialog" aria-label="黄金势能" aria-hidden="true">
+          <div class="panel-head">
+            <div>
+              <h2><span class="em-amber">φ</span> 黄金势能实时验证</h2>
+              <p class="panel-sub">点击第 5 行任意格可切换目标 <span id="targetCoordLabel" class="mono em-rose">T(0, 5)</span></p>
+            </div>
+            <div class="panel-head-tools">
+              <div class="fmt" role="group" aria-label="权重显示格式">
+                <button type="button" id="fmtPower" class="is-on" aria-pressed="true">φⁿ</button>
+                <button type="button" id="fmtDecimal" aria-pressed="false">小数</button>
+              </div>
+              <button type="button" class="panel-x" data-close-panel aria-label="关闭势能面板">×</button>
+            </div>
+          </div>
+          <div class="meter-card">
+            <div class="meter-top"><span>当前棋盘总势能 Σ</span><span id="potentialVal" class="mono">1.000000</span></div>
+            <div class="bar" id="potentialMeter" role="meter" aria-valuemin="0" aria-valuemax="1" aria-valuenow="1" aria-label="总势能"><span id="potentialBar"></span></div>
+            <div class="meter-scale mono"><span>0.0</span><span>占比 <strong id="potentialPct">100.000%</strong></span><span class="em-rose">1.000000</span></div>
+            <p id="potentialVerdict" class="verdict" aria-live="polite"></p>
+          </div>
+          <div class="log-head"><span>单步跳跃势能日志</span><span class="mono em-green">恒有 ΔΣ ≤ 0</span></div>
+          <div id="jumpLog" class="jump-log" role="log" aria-label="跳跃势能日志"></div>
+        </div>
+
+        <div id="panelPresets" class="popover-panel glass-strong" role="dialog" aria-label="布阵与关卡" aria-hidden="true">
+          <div class="panel-head">
+            <h2 id="missionTitle">当前挑战</h2>
+            <span id="missionBadge" class="badge badge-rose">数学不可达</span>
+            <button type="button" class="panel-x" data-close-panel aria-label="关闭布阵面板">×</button>
+          </div>
+          <p id="missionDesc" class="mission"></p>
+          <div class="block-label">一键在起跑线下方 (y ≤ 0) 铺满棋盘：</div>
+          <button type="button" id="btnFillInfinite" class="fill-infinite">
+            <span>∞ 真正无限下半平面<small>拖多远都有子</small></span>
+            <span class="mono em-rose">Σ = 1.0</span>
+          </button>
+          <div class="fill-grid">
+            <button type="button" data-fill="9x5" class="fill-btn">45 子<small>9×5 有限</small></button>
+            <button type="button" data-fill="21x10" class="fill-btn">210 子<small>21×10 有限</small></button>
+            <button type="button" data-fill="41x15" class="fill-btn">615 子<small>41×15 有限</small></button>
+          </div>
+          <div class="clear-row">
+            <span>清空当前棋盘重新摆阵</span>
+            <button type="button" id="btnClear" class="text-btn">清空棋盘</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="toastBox" class="toast-box" aria-live="polite" aria-relevant="additions"></div>
+    <p id="canvasHint" class="hint">点击或拖拽棋子至绿圈跳跃 · 拖拽空白平移 · 滚轮或双指缩放</p>
+
+    <footer class="footer">
+      <div class="glass dock" id="actionDock">
+        <div class="mode-switch" role="group" aria-label="操作模式">
+          <button type="button" id="modePlay" class="mode-btn is-on" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>跳跃</span>
+          </button>
+          <button type="button" id="modeEdit" class="mode-btn" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            <span>布阵</span>
+          </button>
+        </div>
+        <button type="button" id="btnDemo" class="demo-btn">
+          <svg id="demoPlayIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          <svg id="demoStopIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          <span id="btnDemoLabel">对比 615 子有限阵</span>
+        </button>
+        <button type="button" id="btnUndo" class="icon-btn" disabled title="撤销上一步 (Z)" aria-label="撤销上一步" aria-keyshortcuts="Z">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        </button>
+        <button type="button" id="btnReset" class="icon-btn" title="重置本关 (R)" aria-label="重置本关" aria-keyshortcuts="R">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+        <div class="zoom-group" role="group" aria-label="视角">
+          <button type="button" id="btnZoomOut" class="icon-btn" title="缩小" aria-label="缩小">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="5" x2="19" y1="12" y2="12"/></svg>
+          </button>
+          <button type="button" id="btnCenter" class="icon-btn" title="让起跑线与红线落入可视区域" aria-label="居中并适配屏幕">居中</button>
+          <button type="button" id="btnZoomIn" class="icon-btn" title="放大" aria-label="放大">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div id="proofModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="proofTitle">
+    <div class="glass-strong modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="proofTitle">为什么无穷多颗棋子也跳不过第 4 格红线？</h2>
+          <p>John Horton Conway (1961) · 黄金比例势能不变量证明</p>
+        </div>
+        <button type="button" id="btnCloseProof" class="panel-x" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-scroll">
+      <div class="proof-card">
+        <h3 class="h-amber">1. 给棋盘赋黄金比例权重</h3>
+        <p>令 <span class="mono em-amber">φ = (√5 − 1)/2 ≈ 0.618034</span>（满足 <span class="mono">φ² + φ = 1</span>）。选定第 5 行任意目标格 <span class="mono em-rose">T</span>，给距 <span class="mono">T</span> 曼哈顿距离为 <span class="mono">d</span> 的格子赋权 <span class="mono">φᵈ</span>，则 <span class="mono">T</span> 自身权重为 <span class="mono em-rose">φ⁰ = 1</span>。</p>
+      </div>
+      <div class="proof-card">
+        <h3 class="h-green">2. 任何合法跳跃都不会增加总势能 (ΔΣ ≤ 0)</h3>
+        <ul>
+          <li><strong>向目标 T 跳：</strong><span class="mono em-green">φⁿ⁻² − φⁿ⁻¹ − φⁿ = φⁿ⁻²(1 − φ − φ²) = 0</span>（守恒）</li>
+          <li><strong>等距横向跳：</strong><span class="mono em-amber">φⁿ − φⁿ⁻¹ − φⁿ = −φⁿ⁻¹ &lt; 0</span>（减少）</li>
+          <li><strong>远离目标跳：</strong><span class="mono em-rose">φⁿ⁺² − φⁿ⁺¹ − φⁿ = −2φⁿ⁺¹ &lt; 0</span>（大减）</li>
+        </ul>
+      </div>
+      <div class="proof-card">
+        <h3 class="h-rose">3. 无穷下半平面的总势能上限恰好 = 1</h3>
+        <p>把起跑线下方 (<span class="mono">y ≤ 0</span>) 所有无穷多个格子全部铺满棋子，总势能收敛为：</p>
+        <div class="formula">S₅ = [ φ⁵ / (1 − φ) ] × [ 1 + 2φ / (1 − φ) ] = 1</div>
+        <p>任何<strong>有限</strong>颗棋子的总势能严格 <strong>&lt; 1</strong>；即便摆满无穷颗棋子，有限步后场上仍余无穷颗棋子（贡献 <span class="mono">ε &gt; 0</span>），若有一颗抵达 <span class="mono">T</span> 则总势能需为 <span class="mono em-rose">1 + ε &gt; 1</span>，与 <span class="mono">ΔΣ ≤ 0</span> 矛盾！</p>
+      </div>
+      <div class="note"><strong>延伸：</strong>第 1～4 格最少分别需 <strong>2、4、8、20</strong> 颗棋子（可在左上角切换关卡观看演示）。Simon Tatham 与 Gareth Taylor 证明若允许“无穷多步”超任务可恰好抵达第 5 格；若允许斜跳，极限则变为第 8 格。</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnCloseProofBottom">返回棋盘验证</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="safeProbe" aria-hidden="true"></div>
+  <noscript><p class="noscript">请启用 JavaScript 后再打开此页面。本页是单文件棋盘，不需要网络。</p></noscript>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const PHI = (Math.sqrt(5) - 1) / 2;
+      const PHI_POW = [1];
+      for (let i = 1; i <= 160; i++) PHI_POW.push(PHI_POW[i - 1] * PHI);
+      const SANS = '"Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
+      const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+      const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+      const FIT = {
+        1: { x0: -2, x1: 2, y0: -2, y1: 6 },
+        2: { x0: -1, x1: 3, y0: -2, y1: 6 },
+        3: { x0: -3, x1: 3, y0: -2, y1: 6 },
+        4: { x0: -5, x1: 3, y0: -4, y1: 6 },
+        5: { x0: -6, x1: 6, y0: -2, y1: 6 },
+        0: { x0: -3, x1: 3, y0: -2, y1: 6 }
+      };
+
+      const LEVELS = {
+        1: {
+          short: '第1格 (2子)',
+          name: '第 1 格挑战',
+          targetY: 1,
+          desc: '仅需 2 颗棋子、1 步跳跃即可越过起跑线抵达第 1 格。',
+          pegs: [[0, -1], [0, 0]],
+          moves: [[[0, -1], [0, 1]]]
+        },
+        2: {
+          short: '第2格 (4子)',
+          name: '第 2 格挑战',
+          targetY: 2,
+          desc: '需要 4 颗棋子、3 步跳跃：先送 1 颗上第 1 格，再用横向跳跃补位起跳。',
+          pegs: [[0, -1], [0, 0], [1, 0], [2, 0]],
+          moves: [[[0, -1], [0, 1]], [[2, 0], [0, 0]], [[0, 0], [0, 2]]]
+        },
+        3: {
+          short: '第3格 (8子)',
+          name: '第 3 格挑战',
+          targetY: 3,
+          desc: '需要 8 颗棋子、7 步跳跃：左右两翼协同向中轴汇聚，接力送上第 3 格。',
+          pegs: [[-2, 0], [-1, 0], [0, -1], [0, 0], [1, -1], [1, 0], [2, -1], [2, 0]],
+          moves: [
+            [[2, -1], [2, 1]], [[1, -1], [1, 1]], [[0, -1], [0, 1]],
+            [[-2, 0], [0, 0]], [[0, 0], [0, 2]], [[2, 1], [0, 1]], [[0, 1], [0, 3]]
+          ]
+        },
+        4: {
+          short: '第4格 (20子)',
+          name: '第 4 格极限挑战',
+          targetY: 4,
+          desc: '人类能触碰到的最高边界！最少需要 20 颗棋子、19 步精妙连跳才能摸到第 4 格红线边缘。',
+          pegs: [
+            [-4, 0], [-3, -1], [-3, 0], [-2, -3], [-2, -2], [-2, -1], [-2, 0],
+            [-1, -2], [-1, -1], [-1, 0], [0, -3], [0, -2], [0, -1], [0, 0],
+            [1, -2], [1, -1], [1, 0], [2, -2], [2, -1], [2, 0]
+          ],
+          moves: [
+            [[-1, -1], [-1, 1]], [[-3, -1], [-1, -1]], [[-2, -3], [-2, -1]],
+            [[-1, -2], [-1, 0]], [[-2, -1], [-2, 1]], [[-4, 0], [-2, 0]],
+            [[0, -1], [0, 1]], [[0, -3], [0, -1]], [[2, -2], [0, -2]],
+            [[0, -2], [0, 0]], [[2, -1], [0, -1]], [[-2, 0], [-2, 2]],
+            [[-1, 0], [-1, 2]], [[-2, 2], [0, 2]], [[0, 1], [0, 3]],
+            [[0, -1], [0, 1]], [[2, 0], [0, 0]], [[0, 0], [0, 2]], [[0, 2], [0, 4]]
+          ]
+        },
+        5: {
+          short: '第5格 (∞红线)',
+          name: '第 5 格 · 无限棋盘红线验证',
+          targetY: 5,
+          desc: '起跑线下方 (y ≤ 0) 已真正无限铺满棋子——无论向左、右、下拖拽多远都源源不断！即使初始总势能恰好达到极限 1.000000，有限步后场上仍余无穷颗棋子 (ε > 0)，因此永远跳不过第 4 格红线。',
+          pegs: null,
+          moves: []
+        },
+        0: {
+          short: '自由沙盒',
+          name: '自由沙盒验证',
+          targetY: 5,
+          desc: '切到底部「布阵」在起跑线下方 (y ≤ 0) 自由摆子，再切回「跳跃」验证策略与势能变化。',
+          pegs: [[0, 0], [0, -1], [1, 0], [1, -1], [-1, 0], [-1, -1]],
+          moves: []
+        }
+      };
+
+      const state = {
+        level: 5,
+        mode: 'play',
+        infinitePlane: true,
+        pegs: new Set(),
+        removedBelow: new Set(),
+        addedAbove: new Set(),
+        selected: null,
+        history: [],
+        targetX: 0,
+        showWeights: true,
+        weightFormat: 'power',
+        soundEnabled: true,
+        maxYReached: 0,
+        moveCount: 0,
+        demoTimer: null,
+        demoRunning: false,
+        camX: 0,
+        camY: 1,
+        cellSize: 48,
+        viewCustom: false,
+        isPanning: false,
+        panStartScreen: null,
+        panStartCam: null,
+        hasDragged: false,
+        editPaintValue: null,
+        dragPeg: null,
+        hoverCell: null,
+        anim: null,
+        ripples: [],
+        floatTexts: [],
+        openPanel: null,
+        proofOpen: false,
+        boardRev: 0,
+        pinch: null
+      };
+
+      const app = document.getElementById('app');
+      const canvasWrap = document.getElementById('canvasWrap');
+      const canvas = document.getElementById('boardCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const staticCanvas = document.createElement('canvas');
+      const sctx = staticCanvas.getContext('2d', { alpha: false });
+      const safeProbe = document.getElementById('safeProbe');
+      const topbar = document.getElementById('topbar');
+      const actionDock = document.getElementById('actionDock');
+      const scrim = document.getElementById('scrim');
+      const proofModal = document.getElementById('proofModal');
+
+      const ui = {
+        btnLevelMenu: document.getElementById('btnLevelMenu'),
+        currentLevelShort: document.getElementById('currentLevelShort'),
+        levelChevron: document.getElementById('levelChevron'),
+        panelLevels: document.getElementById('panelLevels'),
+        btnTelemetryPill: document.getElementById('btnTelemetryPill'),
+        hudMaxY: document.getElementById('hudMaxY'),
+        hudPegs: document.getElementById('hudPegs'),
+        hudMoves: document.getElementById('hudMoves'),
+        pillPotential: document.getElementById('pillPotential'),
+        pillBar: document.getElementById('pillBar'),
+        pillMeter: document.getElementById('pillMeter'),
+        iconPotential: document.getElementById('iconPotential'),
+        iconPresets: document.getElementById('iconPresets'),
+        iconWeightEye: document.getElementById('iconWeightEye'),
+        iconProof: document.getElementById('iconProof'),
+        iconSound: document.getElementById('iconSound'),
+        eyeSlash: document.getElementById('eyeSlash'),
+        svgSoundOn: document.getElementById('svgSoundOn'),
+        svgSoundOff: document.getElementById('svgSoundOff'),
+        panelPotential: document.getElementById('panelPotential'),
+        panelPresets: document.getElementById('panelPresets'),
+        potentialVal: document.getElementById('potentialVal'),
+        potentialBar: document.getElementById('potentialBar'),
+        potentialMeter: document.getElementById('potentialMeter'),
+        potentialPct: document.getElementById('potentialPct'),
+        potentialVerdict: document.getElementById('potentialVerdict'),
+        targetCoordLabel: document.getElementById('targetCoordLabel'),
+        jumpLog: document.getElementById('jumpLog'),
+        fmtPower: document.getElementById('fmtPower'),
+        fmtDecimal: document.getElementById('fmtDecimal'),
+        missionTitle: document.getElementById('missionTitle'),
+        missionBadge: document.getElementById('missionBadge'),
+        missionDesc: document.getElementById('missionDesc'),
+        modePlay: document.getElementById('modePlay'),
+        modeEdit: document.getElementById('modeEdit'),
+        btnDemo: document.getElementById('btnDemo'),
+        btnDemoLabel: document.getElementById('btnDemoLabel'),
+        demoPlayIcon: document.getElementById('demoPlayIcon'),
+        demoStopIcon: document.getElementById('demoStopIcon'),
+        btnUndo: document.getElementById('btnUndo'),
+        btnReset: document.getElementById('btnReset'),
+        btnClear: document.getElementById('btnClear'),
+        toastBox: document.getElementById('toastBox'),
+        canvasHint: document.getElementById('canvasHint'),
+        btnCloseProof: document.getElementById('btnCloseProof')
+      };
+
+      const panels = { levels: ui.panelLevels, potential: ui.panelPotential, presets: ui.panelPresets };
+      const compactMq = window.matchMedia('(max-width: 420px), (max-height: 520px)');
+      const finePointer = window.matchMedia('(pointer: fine)').matches;
+      const motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let reduceMotion = motionMq.matches;
+      let dpr = 1;
+      let staticDirty = true;
+      let rafId = 0;
+      let needsFrame = true;
+      let lastDraw = 0;
+      let lastBox = { w: window.innerWidth, h: window.innerHeight };
+      let insets = { top: 0, right: 0, bottom: 0, left: 0, headerBottom: 0, footerTop: 0 };
+      let uiQueued = false;
+      let logRev = -1;
+      const pointers = new Map();
+
+      let audioCtx = null;
+      function ensureAudio() {
+        if (!state.soundEnabled) return null;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') audioCtx.resume().catch(function () {});
+        return audioCtx;
+      }
+      function playTone(freq, duration, type, gainVal, endFreq) {
+        const actx = ensureAudio();
+        if (!actx) return;
+        try {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = type || 'sine';
+          osc.frequency.setValueAtTime(freq, actx.currentTime);
+          if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), actx.currentTime + duration);
+          gain.gain.setValueAtTime(gainVal, actx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start();
+          osc.stop(actx.currentTime + duration);
+        } catch (err) { /* ignore autoplay restrictions */ }
+      }
+      function playJumpSound(conserved) {
+        if (conserved) playTone(350, 0.11, 'triangle', 0.09, 540);
+        else playTone(270, 0.12, 'sine', 0.075, 200);
+      }
+      function playVictorySound() {
+        playTone(523.25, 0.14, 'triangle', 0.085);
+        setTimeout(function () { playTone(659.25, 0.14, 'triangle', 0.085); }, 110);
+        setTimeout(function () { playTone(783.99, 0.28, 'triangle', 0.1); }, 220);
+      }
+      function playClickSound() { playTone(500, 0.04, 'sine', 0.045, 390); }
+
+      function makePegSprite(stops) {
+        const size = 160;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const g = c.getContext('2d');
+        const cx = size / 2;
+        const cy = size / 2;
+        const r = size * 0.36;
+        g.shadowColor = 'rgba(0,0,0,0.5)';
+        g.shadowBlur = 10;
+        g.shadowOffsetY = 4;
+        const grad = g.createRadialGradient(cx - r * 0.32, cy - r * 0.32, r * 0.08, cx, cy, r);
+        stops.forEach(function (stop) { grad.addColorStop(stop[0], stop[1]); });
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(cx, cy, r, 0, Math.PI * 2);
+        g.fill();
+        g.shadowColor = 'transparent';
+        g.shadowBlur = 0;
+        g.shadowOffsetY = 0;
+        g.lineWidth = 2.5;
+        g.strokeStyle = 'rgba(255,255,255,0.28)';
+        g.stroke();
+        g.fillStyle = 'rgba(255,255,255,0.4)';
+        g.beginPath();
+        g.arc(cx - r * 0.28, cy - r * 0.28, r * 0.16, 0, Math.PI * 2);
+        g.fill();
+        return { canvas: c, radius: r, size: size };
+      }
+      const pegBelow = makePegSprite([[0, '#fef08a'], [0.48, '#f59e0b'], [1, '#92400e']]);
+      const pegAbove = makePegSprite([[0, '#a7f3d0'], [0.45, '#10b981'], [1, '#065f46']]);
+
+      const keyOf = function (x, y) { return x + ',' + y; };
+      function parseKey(k) {
+        const i = k.indexOf(',');
+        return [parseInt(k.slice(0, i), 10), parseInt(k.slice(i + 1), 10)];
+      }
+      function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+      function cellDist(x, y) { return Math.abs(x - state.targetX) + Math.abs(y - 5); }
+      function cellWeight(x, y) {
+        const d = cellDist(x, y);
+        return d < PHI_POW.length ? PHI_POW[d] : Math.pow(PHI, d);
+      }
+      function hasPeg(x, y) {
+        const k = keyOf(x, y);
+        if (state.infinitePlane) return y <= 0 ? !state.removedBelow.has(k) : state.addedAbove.has(k);
+        return state.pegs.has(k);
+      }
+      function setPeg(x, y, present) {
+        const k = keyOf(x, y);
+        if (state.infinitePlane) {
+          if (y <= 0) {
+            if (present) state.removedBelow.delete(k);
+            else state.removedBelow.add(k);
+          } else if (present) state.addedAbove.add(k);
+          else state.addedAbove.delete(k);
+        } else if (present) state.pegs.add(k);
+        else state.pegs.delete(k);
+        state.boardRev++;
+        staticDirty = true;
+      }
+      function clearSets() {
+        state.pegs.clear();
+        state.removedBelow.clear();
+        state.addedAbove.clear();
+        state.boardRev++;
+        staticDirty = true;
+      }
+      function totalPotential() {
+        if (state.infinitePlane) {
+          let sum = 1;
+          state.removedBelow.forEach(function (k) {
+            const p = parseKey(k);
+            sum -= cellWeight(p[0], p[1]);
+          });
+          state.addedAbove.forEach(function (k) {
+            const p = parseKey(k);
+            sum += cellWeight(p[0], p[1]);
+          });
+          return sum;
+        }
+        let sum = 0;
+        state.pegs.forEach(function (k) {
+          const p = parseKey(k);
+          sum += cellWeight(p[0], p[1]);
+        });
+        return sum;
+      }
+      function getValidJumpsFrom(x, y) {
+        if (!hasPeg(x, y)) return [];
+        const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+        const res = [];
+        for (let i = 0; i < dirs.length; i++) {
+          const vx = dirs[i][0];
+          const vy = dirs[i][1];
+          const mx = x + vx;
+          const my = y + vy;
+          const dx = x + 2 * vx;
+          const dy = y + 2 * vy;
+          if (hasPeg(mx, my) && !hasPeg(dx, dy)) res.push({ mx: mx, my: my, dx: dx, dy: dy });
+        }
+        return res;
+      }
+      function computeMaxY() {
+        if (state.infinitePlane) {
+          let maxY = 0;
+          state.addedAbove.forEach(function (k) {
+            const y = parseKey(k)[1];
+            if (y > maxY) maxY = y;
+          });
+          return maxY;
+        }
+        let maxY = null;
+        state.pegs.forEach(function (k) {
+          const y = parseKey(k)[1];
+          if (maxY === null || y > maxY) maxY = y;
+        });
+        return maxY === null ? 0 : maxY;
+      }
+      function resetTransient() {
+        state.selected = null;
+        state.dragPeg = null;
+        state.anim = null;
+        state.ripples.length = 0;
+        state.floatTexts.length = 0;
+        state.editPaintValue = null;
+        state.isPanning = false;
+        state.pinch = null;
+        canvasWrap.classList.remove('is-panning');
+      }
+
+      function setOpenPanel(name) {
+        state.openPanel = state.openPanel === name ? null : name;
+        Object.keys(panels).forEach(function (key) {
+          const el = panels[key];
+          const open = key === state.openPanel;
+          el.classList.toggle('panel-open', open);
+          el.setAttribute('aria-hidden', open ? 'false' : 'true');
+          el.inert = !open;
+        });
+        scrim.hidden = !state.openPanel;
+        ui.levelChevron.classList.toggle('is-open', state.openPanel === 'levels');
+        ui.iconPotential.classList.toggle('active-icon', state.openPanel === 'potential');
+        ui.iconPresets.classList.toggle('active-icon', state.openPanel === 'presets');
+        ui.btnLevelMenu.setAttribute('aria-expanded', state.openPanel === 'levels' ? 'true' : 'false');
+        ui.btnTelemetryPill.setAttribute('aria-expanded', state.openPanel === 'potential' ? 'true' : 'false');
+        ui.iconPotential.setAttribute('aria-expanded', state.openPanel === 'potential' ? 'true' : 'false');
+        ui.iconPresets.setAttribute('aria-expanded', state.openPanel === 'presets' ? 'true' : 'false');
+      }
+
+      function clearToasts() {
+        ui.toastBox.replaceChildren();
+      }
+      function showToast(text, tone) {
+        const el = document.createElement('div');
+        el.className = 'toast toast-' + (tone || 'info');
+        el.textContent = text;
+        ui.toastBox.appendChild(el);
+        while (ui.toastBox.children.length > 2) ui.toastBox.removeChild(ui.toastBox.firstChild);
+        setTimeout(function () {
+          el.style.opacity = '0';
+          setTimeout(function () { el.remove(); }, 220);
+        }, 2400);
+      }
+
+      function stopDemo() {
+        if (state.demoTimer) {
+          clearTimeout(state.demoTimer);
+          state.demoTimer = null;
+        }
+        state.demoRunning = false;
+        updateDemoButton();
+      }
+      function updateDemoButton() {
+        let longText = '';
+        let shortText = '';
+        let stop = false;
+        if (state.level === 5) {
+          if (state.infinitePlane) { longText = '对比 615 子有限阵'; shortText = '有限阵'; }
+          else { longText = '切回 ∞ 无限棋盘'; shortText = '∞棋盘'; }
+        } else if (state.level === 0) {
+          longText = '20子模板';
+          shortText = '20子';
+        } else if (state.demoRunning) {
+          longText = '停止演示';
+          shortText = '停止';
+          stop = true;
+        } else {
+          longText = '演示第' + state.level + '格';
+          shortText = '演示';
+        }
+        ui.btnDemoLabel.textContent = compactMq.matches ? shortText : longText;
+        ui.btnDemo.classList.toggle('is-stop', stop);
+        ui.btnDemo.setAttribute('aria-label', longText);
+        ui.demoPlayIcon.hidden = stop;
+        ui.demoStopIcon.hidden = !stop;
+      }
+
+      function fillInfinite() {
+        stopDemo();
+        clearToasts();
+        state.infinitePlane = true;
+        clearSets();
+        state.history = [];
+        state.moveCount = 0;
+        state.maxYReached = 0;
+        resetTransient();
+        updateDemoButton();
+        showToast('已启用真正无限下半平面 (y ≤ 0 任意方向皆有棋子 · Σ = 1.000000)', 'warn');
+        updateUINow();
+        layout();
+        fitView();
+      }
+      function fillArmy(cols, rows) {
+        stopDemo();
+        clearToasts();
+        state.infinitePlane = false;
+        clearSets();
+        state.history = [];
+        state.moveCount = 0;
+        resetTransient();
+        const half = Math.floor(cols / 2);
+        for (let y = 0; y > -rows; y--) {
+          for (let x = -half; x <= half; x++) state.pegs.add(keyOf(x, y));
+        }
+        state.boardRev++;
+        state.maxYReached = 0;
+        updateDemoButton();
+        const pot = totalPotential();
+        showToast('已切换为 ' + state.pegs.size + ' 子有限阵 · 总势能 Σ = ' + pot.toFixed(6) + ' < 1', 'warn');
+        updateUINow();
+        layout();
+        fitView();
+      }
+      function loadLevel(lvl) {
+        stopDemo();
+        clearToasts();
+        state.level = lvl;
+        state.infinitePlane = lvl === 5;
+        clearSets();
+        state.history = [];
+        state.moveCount = 0;
+        state.maxYReached = 0;
+        state.targetX = 0;
+        resetTransient();
+        const cfg = LEVELS[lvl];
+        if (lvl !== 5 && cfg.pegs) {
+          cfg.pegs.forEach(function (p) { state.pegs.add(keyOf(p[0], p[1])); });
+          state.boardRev++;
+        }
+        state.maxYReached = computeMaxY();
+        ui.currentLevelShort.textContent = cfg.short;
+        updateLevelListHighlight();
+        setMode(lvl === 0 ? 'edit' : 'play', true);
+        updateDemoButton();
+        updateUINow();
+        layout();
+        fitView();
+      }
+      function setMode(m, silent) {
+        state.mode = m;
+        state.selected = null;
+        state.dragPeg = null;
+        const play = m === 'play';
+        ui.modePlay.classList.toggle('is-on', play);
+        ui.modeEdit.classList.toggle('is-on', !play);
+        ui.modePlay.setAttribute('aria-pressed', play ? 'true' : 'false');
+        ui.modeEdit.setAttribute('aria-pressed', play ? 'false' : 'true');
+        ui.canvasHint.textContent = play
+          ? '点击或拖拽棋子至绿圈跳跃 · 拖拽空白平移 · 滚轮或双指缩放'
+          : '布阵模式：点击或涂抹起跑线下方 (y ≤ 0) 增减棋子';
+        if (!silent) playClickSound();
+        needsFrame = true;
+      }
+      function updateLevelListHighlight() {
+        document.querySelectorAll('.level-item').forEach(function (btn) {
+          const on = parseInt(btn.dataset.level, 10) === state.level;
+          btn.classList.toggle('is-current', on);
+          if (on) btn.setAttribute('aria-current', 'true');
+          else btn.removeAttribute('aria-current');
+        });
+      }
+      function setBadge(text, kind) {
+        ui.missionBadge.textContent = text;
+        ui.missionBadge.className = 'badge badge-' + kind;
+      }
+
+      function performJump(sx, sy, dx, dy, fromDemo) {
+        const mx = (sx + dx) / 2;
+        const my = (sy + dy) / 2;
+        if (!Number.isInteger(mx) || !Number.isInteger(my)) return false;
+        if (Math.abs(dx - sx) + Math.abs(dy - sy) !== 2) return false;
+        if (sx !== dx && sy !== dy) return false;
+        if (!hasPeg(sx, sy) || !hasPeg(mx, my) || hasPeg(dx, dy)) return false;
+        if (!fromDemo) stopDemo();
+
+        const wBefore = cellWeight(sx, sy) + cellWeight(mx, my);
+        const wAfter = cellWeight(dx, dy);
+        const delta = wAfter - wBefore;
+        const isConserved = Math.abs(delta) < 1e-9;
+        const dSrc = cellDist(sx, sy);
+        const dDst = cellDist(dx, dy);
+        let jumpType = '向目标跳';
+        if (dDst === dSrc) jumpType = '等距跳';
+        else if (dDst > dSrc) jumpType = '远离跳';
+
+        setPeg(sx, sy, false);
+        setPeg(mx, my, false);
+        setPeg(dx, dy, true);
+        state.history.push({ src: [sx, sy], mid: [mx, my], dst: [dx, dy], delta: delta, isConserved: isConserved, jumpType: jumpType });
+        state.moveCount++;
+        state.selected = null;
+        const prevMax = state.maxYReached;
+        state.maxYReached = Math.max(state.maxYReached, dy, computeMaxY());
+        const now = performance.now();
+        state.anim = {
+          sx: sx, sy: sy, dx: dx, dy: dy,
+          startTime: now,
+          duration: reduceMotion ? 0 : (fromDemo ? 230 : 180)
+        };
+        state.ripples.push({ x: mx, y: my, startTime: now, color: isConserved ? '#10b981' : '#f43f5e' });
+        state.floatTexts.push({
+          wx: dx,
+          wy: dy + 0.45,
+          text: isConserved ? 'ΔΣ = 0' : 'ΔΣ = ' + delta.toFixed(4),
+          color: isConserved ? '#34d399' : '#fb7185',
+          startTime: now
+        });
+        playJumpSound(isConserved);
+        const cfg = LEVELS[state.level];
+        if (cfg && cfg.targetY <= 4 && dy >= cfg.targetY && prevMax < cfg.targetY) {
+          playVictorySound();
+          showToast('成功抵达第 ' + cfg.targetY + ' 格！（共 ' + state.moveCount + ' 步）', 'success');
+        }
+        updateUINow();
+        return true;
+      }
+      function undoMove() {
+        stopDemo();
+        if (!state.history.length) return;
+        const last = state.history.pop();
+        setPeg(last.dst[0], last.dst[1], false);
+        setPeg(last.src[0], last.src[1], true);
+        setPeg(last.mid[0], last.mid[1], true);
+        state.moveCount = Math.max(0, state.moveCount - 1);
+        state.maxYReached = computeMaxY();
+        resetTransient();
+        playClickSound();
+        updateUINow();
+      }
+      function startDemo() {
+        if (state.level === 5) {
+          if (state.infinitePlane) fillArmy(41, 15);
+          else fillInfinite();
+          return;
+        }
+        if (state.level === 0) {
+          loadLevel(4);
+          return;
+        }
+        if (state.demoRunning) {
+          stopDemo();
+          return;
+        }
+        loadLevel(state.level);
+        const moves = LEVELS[state.level].moves;
+        if (!moves || !moves.length) return;
+        state.demoRunning = true;
+        updateDemoButton();
+        let idx = 0;
+        function step() {
+          if (!state.demoRunning || idx >= moves.length) {
+            state.demoRunning = false;
+            updateDemoButton();
+            return;
+          }
+          const move = moves[idx];
+          performJump(move[0][0], move[0][1], move[1][0], move[1][1], true);
+          idx++;
+          state.demoTimer = setTimeout(step, reduceMotion ? 0 : 440);
+        }
+        state.demoTimer = setTimeout(step, reduceMotion ? 0 : 240);
+      }
+
+      function renderLog() {
+        if (state.history.length === logRev) return;
+        logRev = state.history.length;
+        ui.jumpLog.replaceChildren();
+        if (!state.history.length) {
+          const empty = document.createElement('div');
+          empty.className = 'log-empty';
+          empty.textContent = '走一步跳棋，验证 ΔΣ ≤ 0';
+          ui.jumpLog.appendChild(empty);
+          return;
+        }
+        const recent = state.history.slice(-14).reverse();
+        recent.forEach(function (item, i) {
+          const row = document.createElement('div');
+          row.className = 'log-row';
+          const left = document.createElement('div');
+          left.className = 'log-left';
+          const n = document.createElement('span');
+          n.className = 'mono dim';
+          n.textContent = '#' + (state.history.length - i);
+          const mv = document.createElement('span');
+          mv.className = 'mono';
+          mv.textContent = '(' + item.src[0] + ',' + item.src[1] + ')→(' + item.dst[0] + ',' + item.dst[1] + ')';
+          const typ = document.createElement('span');
+          typ.className = 'log-type';
+          typ.textContent = item.jumpType;
+          left.append(n, mv, typ);
+          const badge = document.createElement('span');
+          badge.className = 'log-delta ' + (item.isConserved ? 'is-zero' : 'is-neg');
+          badge.textContent = item.isConserved ? 'Δ = 0' : 'Δ = ' + item.delta.toFixed(5);
+          row.append(left, badge);
+          ui.jumpLog.appendChild(row);
+        });
+      }
+      function updateUINow() {
+        const pot = totalPotential();
+        const pct = clamp(pot * 100, 0, 100);
+        const gap = Math.max(0, 1 - pot);
+        ui.hudMaxY.textContent = 'y=' + state.maxYReached;
+        ui.hudPegs.textContent = state.infinitePlane ? '∞' : String(state.pegs.size);
+        ui.hudMoves.textContent = state.moveCount + '步';
+        ui.pillPotential.textContent = pot.toFixed(6);
+        ui.potentialVal.textContent = pot.toFixed(6);
+        ui.pillBar.style.width = pct.toFixed(2) + '%';
+        ui.potentialBar.style.width = pct.toFixed(2) + '%';
+        ui.potentialPct.textContent = pct.toFixed(3) + '%';
+        ui.pillMeter.setAttribute('aria-valuenow', pot.toFixed(6));
+        ui.potentialMeter.setAttribute('aria-valuenow', pot.toFixed(6));
+        ui.btnUndo.disabled = state.history.length === 0;
+        ui.targetCoordLabel.textContent = 'T(' + state.targetX + ', 5)';
+        const tx = state.targetX;
+        if (state.infinitePlane && Math.abs(pot - 1) < 1e-6) {
+          ui.potentialVerdict.innerHTML = '当前为<span class="em-amber">真正无限下半平面</span>（总势能恰好 = <span class="mono em-amber">1.000000</span>）。但有限步后棋盘仍余无穷颗棋子（余量 <span class="mono em-rose">ε &gt; 0</span>），若抵达 <span class="mono em-rose">T(' + tx + ', 5)</span> 需总势能 <span class="mono em-rose">1 + ε &gt; 1</span>，矛盾！';
+        } else if (pot < 1 - 1e-6) {
+          ui.potentialVerdict.innerHTML = '距红线门槛 <span class="mono em-rose">1.000000</span> 还差 <span class="mono em-amber">' + gap.toFixed(6) + '</span>；且每步 <span class="mono em-green">ΔΣ ≤ 0</span>，有限步内绝对无法抵达 <span class="mono em-rose">T(' + tx + ', 5)</span>。';
+        } else {
+          ui.potentialVerdict.innerHTML = '<span class="em-green">已达到阈值 1.000000</span>';
+        }
+        const cfg = LEVELS[state.level];
+        ui.missionTitle.textContent = cfg.name;
+        ui.missionDesc.textContent = cfg.desc;
+        if (state.level === 5) setBadge('数学不可达', 'rose');
+        else if (state.level === 0) setBadge('自由实验', 'sky');
+        else if (state.maxYReached >= cfg.targetY) setBadge('已达成', 'green');
+        else setBadge('目标第 ' + cfg.targetY + ' 格', 'amber');
+        ui.fmtPower.classList.toggle('is-on', state.weightFormat === 'power');
+        ui.fmtDecimal.classList.toggle('is-on', state.weightFormat === 'decimal');
+        ui.fmtPower.setAttribute('aria-pressed', state.weightFormat === 'power' ? 'true' : 'false');
+        ui.fmtDecimal.setAttribute('aria-pressed', state.weightFormat === 'decimal' ? 'true' : 'false');
+        renderLog();
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      }
+      function updateUISoon() {
+        if (uiQueued) return;
+        uiQueued = true;
+        requestAnimationFrame(function () {
+          uiQueued = false;
+          updateUINow();
+        });
+      }
+
+      function syncViewportVars() {
+        const vv = window.visualViewport;
+        const h = Math.round(vv ? vv.height : window.innerHeight);
+        const w = Math.round(vv ? vv.width : window.innerWidth);
+        const root = document.documentElement;
+        if (root.style.getPropertyValue('--vvh') === h + 'px' && root.style.getPropertyValue('--vvw') === w + 'px') return false;
+        root.style.setProperty('--vvh', h + 'px');
+        root.style.setProperty('--vvw', w + 'px');
+        return true;
+      }
+      function layout() {
+        const vpChanged = syncViewportVars();
+        if (vpChanged) void document.documentElement.offsetHeight;
+        const padStyle = getComputedStyle(safeProbe);
+        const pad = {
+          top: parseFloat(padStyle.paddingTop) || 0,
+          right: parseFloat(padStyle.paddingRight) || 0,
+          bottom: parseFloat(padStyle.paddingBottom) || 0,
+          left: parseFloat(padStyle.paddingLeft) || 0
+        };
+        const sizeChanged = resizeCanvas();
+        const headerBottom = topbar.getBoundingClientRect().bottom;
+        const footerTop = actionDock.getBoundingClientRect().top;
+        const moved = Math.abs(headerBottom - insets.headerBottom) > 1 || Math.abs(footerTop - insets.footerTop) > 1 || vpChanged;
+        insets = {
+          top: pad.top, right: pad.right, bottom: pad.bottom, left: pad.left,
+          headerBottom: headerBottom, footerTop: footerTop
+        };
+        const root = document.documentElement;
+        root.style.setProperty('--header-bottom', headerBottom + 'px');
+        root.style.setProperty('--footer-top', footerTop + 'px');
+        root.style.setProperty('--sal', pad.left + 'px');
+        root.style.setProperty('--sar', pad.right + 'px');
+        root.style.setProperty('--sat', pad.top + 'px');
+        root.style.setProperty('--sab', pad.bottom + 'px');
+        if (moved || sizeChanged) staticDirty = true;
+        return moved || sizeChanged;
+      }
+      function resizeCanvas() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvasWrap.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
+        const bw = Math.floor(w * dpr);
+        const bh = Math.floor(h * dpr);
+        if (canvas.width !== bw || canvas.height !== bh) {
+          canvas.width = bw;
+          canvas.height = bh;
+          staticCanvas.width = bw;
+          staticCanvas.height = bh;
+          staticDirty = true;
+          return true;
+        }
+        return false;
+      }
+      function fitView() {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (w < 10 || h < 10) return;
+        const fit = FIT[state.level] || FIT[5];
+        const cols = fit.x1 - fit.x0 + 1;
+        const rows = fit.y1 - fit.y0 + 1;
+        const freeLeft = insets.left + 46;
+        const freeRight = w - insets.right - 8;
+        const freeTop = insets.headerBottom + 6;
+        const freeBottom = Math.min(h - 6, insets.footerTop - 6);
+        const freeW = Math.max(48, freeRight - freeLeft);
+        const freeH = Math.max(48, freeBottom - freeTop);
+        state.cellSize = clamp(Math.floor(Math.min(freeW / cols, freeH / rows)), 16, 56);
+        const focusX = (fit.x0 + fit.x1) / 2;
+        const focusY = (fit.y0 + fit.y1) / 2;
+        const visCx = (freeLeft + freeRight) / 2;
+        const visCy = (freeTop + freeBottom) / 2;
+        state.camX = focusX - (visCx - w / 2) / state.cellSize;
+        state.camY = focusY - (h / 2 - visCy) / state.cellSize;
+        state.viewCustom = false;
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      }
+      function zoomAt(sx, sy, factor) {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const wx = state.camX + (sx - w / 2) / state.cellSize;
+        const wy = state.camY - (sy - h / 2) / state.cellSize;
+        const size = clamp(state.cellSize * factor, 16, 86);
+        state.cellSize = size;
+        state.camX = wx - (sx - w / 2) / size;
+        state.camY = wy + (sy - h / 2) / size;
+        state.viewCustom = true;
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      }
+      function zoomCenter(factor) {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const sx = (insets.left + (w - insets.right)) / 2;
+        const sy = (insets.headerBottom + Math.min(h, insets.footerTop)) / 2;
+        zoomAt(sx, sy, factor);
+      }
+
+      function worldToScreen(wx, wy) {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        return [w / 2 + (wx - state.camX) * state.cellSize, h / 2 - (wy - state.camY) * state.cellSize];
+      }
+      function screenToWorld(sx, sy) {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        return [
+          Math.round(state.camX + (sx - w / 2) / state.cellSize),
+          Math.round(state.camY - (sy - h / 2) / state.cellSize)
+        ];
+      }
+      function roundRect(c, x, y, w, h, r) {
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+      function toSup(n) {
+        return String(n).split('').map(function (ch) { return SUP[ch] || ch; }).join('');
+      }
+      function visibleRange() {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const cs = state.cellSize;
+        return {
+          w: w, h: h, cs: cs,
+          minX: Math.floor(state.camX - w / (2 * cs)) - 1,
+          maxX: Math.ceil(state.camX + w / (2 * cs)) + 1,
+          minY: Math.floor(state.camY - h / (2 * cs)) - 1,
+          maxY: Math.ceil(state.camY + h / (2 * cs)) + 1
+        };
+      }
+
+      function drawStatic() {
+        const range = visibleRange();
+        const w = range.w;
+        const h = range.h;
+        const cs = range.cs;
+        sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        sctx.clearRect(0, 0, w, h);
+        const bg = sctx.createRadialGradient(w / 2, h * 0.38, 40, w / 2, h * 0.5, Math.max(w, h) * 0.78);
+        bg.addColorStop(0, '#0d1424');
+        bg.addColorStop(1, '#05080f');
+        sctx.fillStyle = bg;
+        sctx.fillRect(0, 0, w, h);
+
+        const redLineY = worldToScreen(0, 4.5)[1];
+        const startLineY = worldToScreen(0, 0.5)[1];
+        if (redLineY > 0) {
+          const gTop = sctx.createLinearGradient(0, 0, 0, redLineY);
+          gTop.addColorStop(0, 'rgba(225, 29, 72, 0.15)');
+          gTop.addColorStop(1, 'rgba(225, 29, 72, 0.05)');
+          sctx.fillStyle = gTop;
+          sctx.fillRect(0, 0, w, Math.min(h, redLineY));
+        }
+        if (startLineY < h) {
+          sctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
+          sctx.fillRect(0, Math.max(0, startLineY), w, h - Math.max(0, startLineY));
+        }
+
+        if (state.showWeights) {
+          for (let y = range.minY; y <= range.maxY; y++) {
+            for (let x = range.minX; x <= range.maxX; x++) {
+              const d = cellDist(x, y);
+              const wt = d < PHI_POW.length ? PHI_POW[d] : 0;
+              if (wt <= 0.014) continue;
+              const p = worldToScreen(x, y);
+              const alpha = Math.min(0.24, wt * 0.27);
+              sctx.fillStyle = y >= 5 ? 'rgba(244, 63, 94, ' + alpha + ')' : 'rgba(245, 158, 11, ' + alpha + ')';
+              sctx.fillRect(p[0] - cs / 2 + 1, p[1] - cs / 2 + 1, cs - 2, cs - 2);
+            }
+          }
+        }
+        sctx.lineWidth = 1;
+        for (let pass = 0; pass < 2; pass++) {
+          const rose = pass === 1;
+          sctx.beginPath();
+          sctx.strokeStyle = rose ? 'rgba(244, 63, 94, 0.16)' : 'rgba(51, 65, 85, 0.38)';
+          for (let y = range.minY; y <= range.maxY; y++) {
+            if ((y >= 5) !== rose) continue;
+            for (let x = range.minX; x <= range.maxX; x++) {
+              const p = worldToScreen(x, y);
+              sctx.rect(p[0] - cs / 2, p[1] - cs / 2, cs, cs);
+            }
+          }
+          sctx.stroke();
+        }
+        if (state.showWeights && cs >= 26) {
+          const fontPx = Math.max(9, Math.floor(cs * 0.22));
+          sctx.font = fontPx + 'px ' + MONO;
+          sctx.textAlign = 'center';
+          sctx.textBaseline = 'middle';
+          const gutter = insets.left + 52;
+          for (let y = range.minY; y <= range.maxY; y++) {
+            for (let x = range.minX; x <= range.maxX; x++) {
+              if (hasPeg(x, y)) continue;
+              if (x === state.targetX && y === 5) continue;
+              const d = cellDist(x, y);
+              const p = worldToScreen(x, y);
+              if (p[0] < gutter || p[0] > w - insets.right - 8) continue;
+              if (Math.abs(p[1] - redLineY) < 16 && Math.abs(p[0] - w / 2) < Math.min(170, w * 0.42)) continue;
+              sctx.fillStyle = 'rgba(203, 213, 225, 0.72)';
+              let txt = '1';
+              if (d !== 0 && state.weightFormat === 'power') txt = 'φ' + toSup(d);
+              else if (d !== 0) {
+                const wt = d < PHI_POW.length ? PHI_POW[d] : Math.pow(PHI, d);
+                txt = wt >= 0.01 ? wt.toFixed(2).replace(/^0/, '') : wt.toExponential(0);
+              }
+              sctx.fillText(txt, p[0], p[1]);
+            }
+          }
+        }
+
+        sctx.save();
+        sctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+        sctx.lineWidth = 1.8;
+        sctx.setLineDash([6, 5]);
+        sctx.beginPath();
+        sctx.moveTo(0, startLineY);
+        sctx.lineTo(w, startLineY);
+        sctx.stroke();
+        sctx.setLineDash([]);
+        sctx.fillStyle = 'rgba(125, 211, 252, 0.95)';
+        sctx.font = '600 11px ' + SANS;
+        sctx.textAlign = 'right';
+        sctx.textBaseline = 'bottom';
+        const startText = w < 560 ? '起跑线 · y ≤ 0' : '起跑线 (仅下方 y ≤ 0 可布阵)';
+        sctx.fillText(startText, w - insets.right - 12, startLineY - 6);
+        sctx.restore();
+
+        sctx.save();
+        sctx.shadowColor = 'rgba(244, 63, 94, 0.85)';
+        sctx.shadowBlur = 12;
+        sctx.strokeStyle = '#f43f5e';
+        sctx.lineWidth = 2.6;
+        sctx.beginPath();
+        sctx.moveTo(0, redLineY);
+        sctx.lineTo(w, redLineY);
+        sctx.stroke();
+        sctx.shadowBlur = 0;
+        const redText = w < 520 ? '四格红线 · y = 5' : '四格红线 · 有限步绝对不可逾越 (y = 5)';
+        sctx.font = '700 11px ' + SANS;
+        let tw = sctx.measureText(redText).width;
+        const maxPill = Math.max(80, w - insets.left - insets.right - 24);
+        if (tw + 20 > maxPill) {
+          sctx.font = '700 10px ' + SANS;
+          tw = Math.min(sctx.measureText(redText).width, maxPill - 20);
+        }
+        const pillW = Math.min(maxPill, tw + 20);
+        const pillH = 22;
+        const pillX = clamp(w / 2 - pillW / 2, insets.left + 8, Math.max(insets.left + 8, w - insets.right - 8 - pillW));
+        sctx.fillStyle = '#881337';
+        roundRect(sctx, pillX, redLineY - pillH / 2, pillW, pillH, 11);
+        sctx.fill();
+        sctx.strokeStyle = '#fb7185';
+        sctx.lineWidth = 1;
+        sctx.stroke();
+        sctx.fillStyle = '#ffe4e6';
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        sctx.fillText(redText, pillX + pillW / 2, redLineY + 0.5, pillW - 16);
+        sctx.restore();
+
+        sctx.save();
+        sctx.font = '600 10px ' + MONO;
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        for (let y = range.minY; y <= range.maxY; y++) {
+          const cy = worldToScreen(0, y)[1];
+          if (cy < insets.headerBottom + 10 || cy > insets.footerTop - 10) continue;
+          const label = 'y=' + y;
+          const lw = sctx.measureText(label).width;
+          const pillW = Math.max(36, lw + 12);
+          sctx.fillStyle = 'rgba(6, 9, 17, 0.82)';
+          roundRect(sctx, insets.left + 6, cy - 9, pillW, 18, 6);
+          sctx.fill();
+          sctx.fillStyle = y === 5 ? '#fb7185' : (y >= 1 && y <= 4 ? '#34d399' : '#64748b');
+          sctx.fillText(label, insets.left + 6 + pillW / 2, cy + 0.5);
+        }
+        sctx.restore();
+
+        const t = worldToScreen(state.targetX, 5);
+        sctx.fillStyle = '#fda4af';
+        sctx.font = '700 10px ' + MONO;
+        sctx.textAlign = 'center';
+        sctx.textBaseline = 'middle';
+        sctx.fillText('T', t[0], t[1] - cs * 0.28);
+      }
+
+      function drawPeg(px, py, r, above, selected, hovered) {
+        const sprite = above ? pegAbove : pegBelow;
+        const drawR = hovered && !selected ? r * 1.06 : r;
+        const display = drawR * (sprite.size / sprite.radius);
+        if (selected) {
+          ctx.save();
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 16;
+          ctx.beginPath();
+          ctx.arc(px, py, drawR, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.02)';
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.drawImage(sprite.canvas, px - display / 2, py - display / 2, display, display);
+        if (selected) {
+          ctx.beginPath();
+          ctx.arc(px, py, drawR + 1.6, 0, Math.PI * 2);
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.stroke();
+        }
+      }
+      function skipPeg(x, y) {
+        if (state.anim && x === state.anim.dx && y === state.anim.dy) return true;
+        if (state.dragPeg && state.dragPeg.moved && x === state.dragPeg.sx && y === state.dragPeg.sy) return true;
+        return false;
+      }
+      function drawOnePeg(x, y) {
+        if (skipPeg(x, y)) return;
+        const p = worldToScreen(x, y);
+        const selected = state.selected && state.selected.x === x && state.selected.y === y;
+        const hovered = state.mode === 'play' && state.hoverCell && state.hoverCell[0] === x && state.hoverCell[1] === y;
+        drawPeg(p[0], p[1], Math.max(4, state.cellSize * 0.34), y > 0, selected, hovered);
+      }
+      function drawDynamic(now) {
+        const range = visibleRange();
+        const cs = range.cs;
+        if (state.mode === 'edit' && state.hoverCell && state.hoverCell[1] <= 0) {
+          const p = worldToScreen(state.hoverCell[0], state.hoverCell[1]);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+          ctx.fillRect(p[0] - cs / 2 + 1, p[1] - cs / 2 + 1, cs - 2, cs - 2);
+        }
+        const t = worldToScreen(state.targetX, 5);
+        const pulse = reduceMotion ? 0.85 : (0.6 + 0.4 * Math.sin(now / 320));
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251, 113, 133, ' + pulse + ')';
+        ctx.lineWidth = 2;
+        roundRect(ctx, t[0] - cs / 2 + 3, t[1] - cs / 2 + 3, cs - 6, cs - 6, 6);
+        ctx.stroke();
+        ctx.restore();
+
+        state.ripples = state.ripples.filter(function (r) { return now - r.startTime < 460; });
+        state.ripples.forEach(function (r) {
+          const u = (now - r.startTime) / 460;
+          const p = worldToScreen(r.x, r.y);
+          ctx.save();
+          ctx.strokeStyle = r.color;
+          ctx.globalAlpha = 1 - u;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * (0.2 + 0.48 * u), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        const activeSrc = state.dragPeg ? { x: state.dragPeg.sx, y: state.dragPeg.sy } : state.selected;
+        const jumps = activeSrc ? getValidJumpsFrom(activeSrc.x, activeSrc.y) : [];
+        jumps.forEach(function (j) {
+          const p = worldToScreen(j.dx, j.dy);
+          const hot = state.hoverCell && state.hoverCell[0] === j.dx && state.hoverCell[1] === j.dy;
+          ctx.save();
+          ctx.fillStyle = hot ? 'rgba(16, 185, 129, 0.38)' : 'rgba(16, 185, 129, 0.18)';
+          ctx.strokeStyle = hot ? '#6ee7b7' : '#10b981';
+          ctx.lineWidth = hot ? 2.5 : 2;
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * (hot ? 0.33 : 0.29), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#34d399';
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], cs * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        if (state.infinitePlane) {
+          const yTop = Math.min(range.maxY, 0);
+          for (let y = range.minY; y <= yTop; y++) {
+            for (let x = range.minX; x <= range.maxX; x++) {
+              if (state.removedBelow.has(keyOf(x, y))) continue;
+              drawOnePeg(x, y);
+            }
+          }
+          state.addedAbove.forEach(function (k) {
+            const p = parseKey(k);
+            if (p[0] < range.minX || p[0] > range.maxX || p[1] < range.minY || p[1] > range.maxY) return;
+            drawOnePeg(p[0], p[1]);
+          });
+        } else {
+          state.pegs.forEach(function (k) {
+            const p = parseKey(k);
+            if (p[0] < range.minX - 1 || p[0] > range.maxX + 1 || p[1] < range.minY - 1 || p[1] > range.maxY + 1) return;
+            drawOnePeg(p[0], p[1]);
+          });
+        }
+
+        const radius = Math.max(4, cs * 0.34);
+        if (state.dragPeg && state.dragPeg.moved) {
+          drawPeg(state.dragPeg.curScreenX, state.dragPeg.curScreenY - 6, radius * 1.12, state.dragPeg.sy > 0, true, false);
+        }
+        if (state.anim) {
+          const a = state.anim;
+          let u = a.duration <= 0 ? 1 : Math.min(1, (now - a.startTime) / a.duration);
+          const eased = reduceMotion ? u : (1 - Math.pow(1 - u, 3));
+          const wx = a.sx + (a.dx - a.sx) * eased;
+          const wy = a.sy + (a.dy - a.sy) * eased;
+          const p = worldToScreen(wx, wy);
+          const lift = reduceMotion ? 0 : Math.sin(u * Math.PI) * cs * 0.36;
+          drawPeg(p[0], p[1] - lift, radius * (1 + (reduceMotion ? 0 : 0.14 * Math.sin(u * Math.PI))), a.dy > 0, true, false);
+          if (u >= 1) state.anim = null;
+        }
+
+        state.floatTexts = state.floatTexts.filter(function (f) { return now - f.startTime < (reduceMotion ? 400 : 950); });
+        state.floatTexts.forEach(function (f) {
+          const life = reduceMotion ? 400 : 950;
+          const u = (now - f.startTime) / life;
+          const p = worldToScreen(f.wx, f.wy);
+          ctx.save();
+          ctx.globalAlpha = u < 0.2 ? u / 0.2 : 1 - (u - 0.2) / 0.8;
+          ctx.font = '700 12px ' + MONO;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = f.color;
+          ctx.fillText(f.text, p[0], p[1] - u * 28);
+          ctx.restore();
+        });
+      }
+      function render(now) {
+        if (!canvas.width || !canvas.height) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (staticDirty) {
+          drawStatic();
+          staticDirty = false;
+        }
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(staticCanvas, 0, 0);
+        ctx.restore();
+        drawDynamic(now);
+      }
+      function isActive() {
+        return !!(state.anim || state.ripples.length || state.floatTexts.length || state.dragPeg || state.pinch || state.isPanning || state.editPaintValue !== null);
+      }
+      function loop(now) {
+        rafId = 0;
+        const active = isActive();
+        if (needsFrame || active || (!reduceMotion && now - lastDraw > 80)) {
+          needsFrame = false;
+          lastDraw = now;
+          render(now);
+        }
+        if (!document.hidden && (active || !reduceMotion || needsFrame)) rafId = requestAnimationFrame(loop);
+      }
+      function requestRender() {
+        needsFrame = true;
+        if (document.hidden) return;
+        if (!rafId) rafId = requestAnimationFrame(loop);
+      }
+
+      function canvasPoint(e) {
+        const rect = canvas.getBoundingClientRect();
+        return [e.clientX - rect.left, e.clientY - rect.top];
+      }
+      function beginPinch() {
+        const pts = Array.from(pointers.values());
+        if (pts.length < 2) return;
+        state.dragPeg = null;
+        state.isPanning = false;
+        state.editPaintValue = null;
+        state.hasDragged = true;
+        state.viewCustom = true;
+        canvasWrap.classList.remove('is-panning');
+        const mx = (pts[0].x + pts[1].x) / 2;
+        const my = (pts[0].y + pts[1].y) / 2;
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        state.pinch = {
+          dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+          size: state.cellSize,
+          wx: state.camX + (mx - w / 2) / state.cellSize,
+          wy: state.camY - (my - h / 2) / state.cellSize
+        };
+      }
+      function applyPinch() {
+        if (!state.pinch) return;
+        const pts = Array.from(pointers.values());
+        if (pts.length < 2) return;
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        const mx = (pts[0].x + pts[1].x) / 2;
+        const my = (pts[0].y + pts[1].y) / 2;
+        const size = clamp(state.pinch.size * (dist / state.pinch.dist), 16, 86);
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        state.cellSize = size;
+        state.camX = state.pinch.wx - (mx - w / 2) / size;
+        state.camY = state.pinch.wy + (my - h / 2) / size;
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      }
+      function endPointer(e, cancelled) {
+        pointers.delete(e.pointerId);
+        if (pointers.size >= 2) {
+          beginPinch();
+          return;
+        }
+        if (state.pinch || pointers.size > 0) {
+          state.pinch = null;
+          state.dragPeg = null;
+          state.isPanning = false;
+          state.editPaintValue = null;
+          state.hasDragged = true;
+          canvasWrap.classList.remove('is-panning');
+          state.hoverCell = null;
+          return;
+        }
+        const pt = canvasPoint(e);
+        const cell = screenToWorld(pt[0], pt[1]);
+        const wx = cell[0];
+        const wy = cell[1];
+        if (cancelled) {
+          state.dragPeg = null;
+          state.isPanning = false;
+          state.editPaintValue = null;
+          canvasWrap.classList.remove('is-panning');
+          state.hoverCell = null;
+          return;
+        }
+        if (state.dragPeg && state.dragPeg.moved) {
+          const dp = state.dragPeg;
+          state.dragPeg = null;
+          const jumps = getValidJumpsFrom(dp.sx, dp.sy);
+          const match = jumps.find(function (j) { return j.dx === wx && j.dy === wy; });
+          if (match) performJump(dp.sx, dp.sy, wx, wy, false);
+          else state.selected = { x: dp.sx, y: dp.sy };
+          state.hoverCell = null;
+          needsFrame = true;
+          return;
+        }
+        state.dragPeg = null;
+        const painted = state.editPaintValue !== null;
+        state.editPaintValue = null;
+        state.isPanning = false;
+        canvasWrap.classList.remove('is-panning');
+        state.hoverCell = null;
+        if (painted || state.hasDragged) return;
+        if (wy === 5) {
+          state.targetX = wx;
+          playClickSound();
+          showToast('目标格已切换至 T(' + wx + ', 5)', 'info');
+          updateUINow();
+          return;
+        }
+        if (state.mode === 'edit') {
+          if (wy > 0) showToast('只能在起跑线下方 (y ≤ 0) 布阵', 'warn');
+          return;
+        }
+        if (state.selected) {
+          const jumps = getValidJumpsFrom(state.selected.x, state.selected.y);
+          const match = jumps.find(function (j) { return j.dx === wx && j.dy === wy; });
+          if (match) {
+            performJump(state.selected.x, state.selected.y, wx, wy, false);
+            return;
+          }
+        }
+        if (hasPeg(wx, wy)) {
+          if (state.selected && state.selected.x === wx && state.selected.y === wy) state.selected = null;
+          else {
+            state.selected = { x: wx, y: wy };
+            playClickSound();
+          }
+        } else state.selected = null;
+        needsFrame = true;
+      }
+      function onPointerDown(e) {
+        if (state.proofOpen) return;
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+        const pt = canvasPoint(e);
+        pointers.set(e.pointerId, { x: pt[0], y: pt[1] });
+        if (pointers.size >= 2) {
+          beginPinch();
+          return;
+        }
+        const cell = screenToWorld(pt[0], pt[1]);
+        state.hasDragged = false;
+        state.panStartScreen = pt;
+        state.panStartCam = [state.camX, state.camY];
+        state.dragPeg = null;
+        state.pinch = null;
+        if (state.mode === 'edit' && cell[1] <= 0 && e.button === 0 && !e.shiftKey) {
+          stopDemo();
+          state.editPaintValue = !hasPeg(cell[0], cell[1]);
+          setPeg(cell[0], cell[1], state.editPaintValue);
+          playClickSound();
+          updateUISoon();
+        } else if (state.mode === 'play' && hasPeg(cell[0], cell[1]) && e.button === 0 && !e.shiftKey && getValidJumpsFrom(cell[0], cell[1]).length) {
+          state.dragPeg = { sx: cell[0], sy: cell[1], startX: pt[0], startY: pt[1], curScreenX: pt[0], curScreenY: pt[1], moved: false };
+        } else {
+          state.isPanning = true;
+        }
+      }
+      function onPointerMove(e) {
+        if (!pointers.has(e.pointerId)) return;
+        const pt = canvasPoint(e);
+        pointers.set(e.pointerId, { x: pt[0], y: pt[1] });
+        const cell = screenToWorld(pt[0], pt[1]);
+        state.hoverCell = cell;
+        if (pointers.size >= 2) {
+          applyPinch();
+          return;
+        }
+        if (state.editPaintValue !== null && state.mode === 'edit') {
+          if (cell[1] <= 0) {
+            const has = hasPeg(cell[0], cell[1]);
+            if (state.editPaintValue && !has) { setPeg(cell[0], cell[1], true); updateUISoon(); }
+            else if (!state.editPaintValue && has) { setPeg(cell[0], cell[1], false); updateUISoon(); }
+          }
+          state.hasDragged = true;
+          needsFrame = true;
+          requestRender();
+          return;
+        }
+        if (state.dragPeg) {
+          if (Math.hypot(pt[0] - state.dragPeg.startX, pt[1] - state.dragPeg.startY) > 8) {
+            state.dragPeg.moved = true;
+            state.hasDragged = true;
+          }
+          state.dragPeg.curScreenX = pt[0];
+          state.dragPeg.curScreenY = pt[1];
+          needsFrame = true;
+          requestRender();
+          return;
+        }
+        if (state.isPanning && state.panStartScreen) {
+          const dx = pt[0] - state.panStartScreen[0];
+          const dy = pt[1] - state.panStartScreen[1];
+          if (Math.hypot(dx, dy) > 5) {
+            state.hasDragged = true;
+            state.viewCustom = true;
+            canvasWrap.classList.add('is-panning');
+            state.camX = state.panStartCam[0] - dx / state.cellSize;
+            state.camY = state.panStartCam[1] + dy / state.cellSize;
+            staticDirty = true;
+          }
+        }
+        needsFrame = true;
+        requestRender();
+      }
+
+      function openProof() {
+        setOpenPanel(null);
+        state.proofOpen = true;
+        proofModal.classList.add('is-open');
+        proofModal.setAttribute('aria-hidden', 'false');
+        app.inert = true;
+        ui.btnCloseProof.focus();
+      }
+      function closeProof() {
+        if (!state.proofOpen && !proofModal.classList.contains('is-open')) return;
+        state.proofOpen = false;
+        proofModal.classList.remove('is-open');
+        proofModal.setAttribute('aria-hidden', 'true');
+        app.inert = false;
+        ui.iconProof.focus();
+      }
+      function isTypingTarget(el) {
+        if (!el || !el.tagName) return false;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+      }
+
+      ui.btnLevelMenu.addEventListener('click', function () { playClickSound(); setOpenPanel('levels'); });
+      ui.btnTelemetryPill.addEventListener('click', function () { playClickSound(); setOpenPanel('potential'); });
+      ui.iconPotential.addEventListener('click', function () { playClickSound(); setOpenPanel('potential'); });
+      ui.iconPresets.addEventListener('click', function () { playClickSound(); setOpenPanel('presets'); });
+      document.querySelectorAll('[data-close-panel]').forEach(function (btn) {
+        btn.addEventListener('click', function () { playClickSound(); setOpenPanel(null); });
+      });
+      scrim.addEventListener('click', function () { setOpenPanel(null); });
+      document.addEventListener('pointerdown', function (e) {
+        ensureAudio();
+        if (!state.openPanel) return;
+        if (e.target.closest && (e.target.closest('#topbar') || e.target.closest('#proofModal'))) return;
+        setOpenPanel(null);
+      });
+      document.querySelectorAll('.level-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          playClickSound();
+          loadLevel(parseInt(btn.dataset.level, 10));
+          setOpenPanel(null);
+        });
+      });
+      ui.iconWeightEye.addEventListener('click', function () {
+        state.showWeights = !state.showWeights;
+        ui.iconWeightEye.classList.toggle('active-icon', state.showWeights);
+        ui.iconWeightEye.setAttribute('aria-pressed', state.showWeights ? 'true' : 'false');
+        ui.eyeSlash.hidden = state.showWeights;
+        playClickSound();
+        showToast(state.showWeights ? '已开启 φ 权重透视' : '已隐藏 φ 权重透视', 'info');
+        staticDirty = true;
+        needsFrame = true;
+        requestRender();
+      });
+      ui.iconSound.addEventListener('click', function () {
+        state.soundEnabled = !state.soundEnabled;
+        ui.svgSoundOn.hidden = !state.soundEnabled;
+        ui.svgSoundOff.hidden = state.soundEnabled;
+        ui.iconSound.setAttribute('aria-pressed', state.soundEnabled ? 'true' : 'false');
+        if (state.soundEnabled) playClickSound();
+      });
+      ui.modePlay.addEventListener('click', function () { setMode('play'); });
+      ui.modeEdit.addEventListener('click', function () { setMode('edit'); });
+      ui.btnDemo.addEventListener('click', startDemo);
+      ui.btnUndo.addEventListener('click', undoMove);
+      ui.btnReset.addEventListener('click', function () { playClickSound(); loadLevel(state.level); });
+      ui.btnClear.addEventListener('click', function () {
+        stopDemo();
+        state.infinitePlane = false;
+        clearSets();
+        state.history = [];
+        state.moveCount = 0;
+        state.maxYReached = 0;
+        resetTransient();
+        updateDemoButton();
+        playClickSound();
+        setOpenPanel(null);
+        updateUINow();
+      });
+      document.getElementById('btnFillInfinite').addEventListener('click', function () {
+        fillInfinite();
+        setOpenPanel(null);
+      });
+      document.querySelectorAll('.fill-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const parts = btn.dataset.fill.split('x').map(Number);
+          fillArmy(parts[0], parts[1]);
+          setOpenPanel(null);
+        });
+      });
+      ui.fmtPower.addEventListener('click', function () { state.weightFormat = 'power'; playClickSound(); updateUINow(); });
+      ui.fmtDecimal.addEventListener('click', function () { state.weightFormat = 'decimal'; playClickSound(); updateUINow(); });
+      document.getElementById('btnZoomIn').addEventListener('click', function () { zoomCenter(1.18); });
+      document.getElementById('btnZoomOut').addEventListener('click', function () { zoomCenter(1 / 1.18); });
+      document.getElementById('btnCenter').addEventListener('click', function () { layout(); fitView(); });
+      ui.iconProof.addEventListener('click', openProof);
+      ui.btnCloseProof.addEventListener('click', closeProof);
+      document.getElementById('btnCloseProofBottom').addEventListener('click', closeProof);
+      proofModal.addEventListener('click', function (e) { if (e.target === proofModal) closeProof(); });
+      proofModal.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        const items = Array.from(proofModal.querySelectorAll('button'));
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      });
+
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', function (e) { endPointer(e, false); });
+      canvas.addEventListener('pointercancel', function (e) { endPointer(e, true); });
+      canvas.addEventListener('pointerleave', function () {
+        if (!pointers.size) state.hoverCell = null;
+      });
+      canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      canvas.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        const pt = canvasPoint(e);
+        zoomAt(pt[0], pt[1], e.deltaY < 0 ? 1.12 : 0.89);
+      }, { passive: false });
+      canvas.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      canvas.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+
+      document.addEventListener('touchmove', function (e) {
+        if (e.target.closest && e.target.closest('.popover-panel, .modal-card, .toast')) return;
+        e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('keydown', function (e) {
+        if (state.proofOpen) {
+          if (e.key === 'Escape') { e.preventDefault(); closeProof(); }
+          return;
+        }
+        if (e.key === 'Escape') {
+          if (state.openPanel) setOpenPanel(null);
+          else state.selected = null;
+          needsFrame = true;
+          return;
+        }
+        if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+        const k = e.key.toLowerCase();
+        if (k === 'z') { undoMove(); return; }
+        if (k === 'r') { loadLevel(state.level); return; }
+        if (k === '0' || e.key === 'Home') { layout(); fitView(); return; }
+        if (k === '+' || k === '=') { zoomCenter(1.18); return; }
+        if (k === '-' || k === '_') { zoomCenter(1 / 1.18); return; }
+        const pan = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1], a: [-1, 0], d: [1, 0], w: [0, 1], s: [0, -1] };
+        if (!pan[k]) return;
+        e.preventDefault();
+        if (state.selected && state.mode === 'play' && (k === 'arrowleft' || k === 'arrowright' || k === 'arrowup' || k === 'arrowdown' || k === 'a' || k === 'd' || k === 'w' || k === 's')) {
+          const dir = pan[k];
+          performJump(state.selected.x, state.selected.y, state.selected.x + dir[0] * 2, state.selected.y + dir[1] * 2, false);
+          return;
+        }
+        state.camX += pan[k][0];
+        state.camY += pan[k][1];
+        state.viewCustom = true;
+        staticDirty = true;
+        requestRender();
+      });
+
+      function onWindowResize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const big = Math.abs(w - lastBox.w) > 80 || Math.abs(h - lastBox.h) > 140;
+        lastBox = { w: w, h: h };
+        layout();
+        if (big) {
+          state.viewCustom = false;
+          fitView();
+        } else requestRender();
+        updateDemoButton();
+      }
+      window.addEventListener('resize', onWindowResize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onWindowResize);
+        window.visualViewport.addEventListener('scroll', onWindowResize);
+      }
+      compactMq.addEventListener('change', updateDemoButton);
+      motionMq.addEventListener('change', function () {
+        reduceMotion = motionMq.matches;
+        requestRender();
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = 0;
+        } else requestRender();
+      });
+
+      Object.keys(panels).forEach(function (key) { panels[key].inert = true; });
+      const ro = new ResizeObserver(function () {
+        const prevFree = insets.footerTop - insets.headerBottom;
+        layout();
+        const free = insets.footerTop - insets.headerBottom;
+        if (!state.viewCustom && Math.abs(free - prevFree) > 24) fitView();
+        else requestRender();
+      });
+      ro.observe(topbar);
+      ro.observe(actionDock);
+
+      layout();
+      loadLevel(5);
+      requestRender();
+    })();
+  </script>
+</body>
+</html>
